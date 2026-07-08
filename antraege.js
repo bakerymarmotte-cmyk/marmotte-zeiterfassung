@@ -84,6 +84,7 @@ export function initAntraegeTab(session) {
             <div class="request-item-top">
               <div>
                 <div class="request-range">${formatDate(r.von)} – ${formatDate(r.bis)}</div>
+                <div class="request-name">${escapeHtml(name)}</div>
               </div>
               <span class="status-badge ${r.status}">${statusLabels[r.status] || r.status}</span>
             </div>
