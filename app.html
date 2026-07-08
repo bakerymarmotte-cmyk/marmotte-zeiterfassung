@@ -237,6 +237,39 @@
   .day-row .day-hours { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--color-text-muted); white-space: nowrap; }
   .day-row.has-hours .day-hours { color: var(--color-text); }
   .day-row.is-today .day-date { color: var(--color-yellow); }
+
+  /* Anträge & Abwesenheiten */
+  .form-card { padding: 18px; margin-bottom: 18px; }
+  .request-item {
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 10px;
+  }
+  .request-item-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .request-range { font-weight: 700; font-size: 14.5px; }
+  .request-name { font-size: 12.5px; color: var(--color-text-muted); margin-top: 2px; }
+  .request-bemerkung { font-size: 13px; color: var(--color-text-muted); margin-top: 6px; }
+  .request-begruendung { font-size: 12.5px; color: var(--color-text-muted); margin-top: 6px; font-style: italic; }
+
+  .status-badge {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+  }
+  .status-badge.offen { background: rgba(253,214,0,0.15); color: var(--color-yellow); }
+  .status-badge.genehmigt { background: rgba(76,175,125,0.15); color: var(--color-success); }
+  .status-badge.abgelehnt { background: rgba(229,72,77,0.15); color: var(--color-danger); }
+
+  .request-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .request-actions .btn { flex: 1; padding: 9px; font-size: 13px; }
+  .btn-approve { background: var(--color-success); color: #06170f; }
+  .btn-reject { background: transparent; border: 1px solid var(--color-danger); color: var(--color-danger); }
+
+  .small-remove-btn {
+    background: none; border: none; color: var(--color-text-muted); font-size: 16px; flex-shrink: 0;
+  }
+  .small-remove-btn:hover { color: var(--color-danger); }
+
+  .abw-subpanel { display: none; }
+  .abw-subpanel.active { display: block; }
 </style>
 </head>
 <body>
@@ -334,8 +367,33 @@
 
   <!-- ANTRÄGE -->
   <section class="tab-panel" id="panel-antraege">
-    <h2 class="section-title">Anträge</h2>
-    <div class="placeholder-box">Ferien &amp; Frei-Wünsche folgen in einem der nächsten Bauabschnitte.</div>
+    <div class="subtabs" id="antraege-subtabs">
+      <button data-sub="ferien" class="active">Ferien</button>
+      <button data-sub="freiwuensche">Frei-Wünsche</button>
+    </div>
+
+    <div class="subpanel active" id="antraege-sub-ferien">
+      <div class="card form-card">
+        <div class="form-row-2">
+          <div class="field"><label for="ferien-von">Von</label><input type="date" id="ferien-von"></div>
+          <div class="field"><label for="ferien-bis">Bis</label><input type="date" id="ferien-bis"></div>
+        </div>
+        <div class="field"><label for="ferien-bemerkung">Bemerkung (optional)</label><input type="text" id="ferien-bemerkung"></div>
+        <div class="error-text" id="ferien-error"></div>
+        <button class="btn btn-primary" id="ferien-submit-btn" style="width:100%;">Ferien beantragen</button>
+      </div>
+      <div id="ferien-list"></div>
+    </div>
+
+    <div class="subpanel" id="antraege-sub-freiwuensche">
+      <div class="card form-card">
+        <div class="field"><label for="freiwunsch-datum">Datum</label><input type="date" id="freiwunsch-datum"></div>
+        <div class="field"><label for="freiwunsch-bemerkung">Bemerkung (optional)</label><input type="text" id="freiwunsch-bemerkung"></div>
+        <div class="error-text" id="freiwunsch-error"></div>
+        <button class="btn btn-primary" id="freiwunsch-submit-btn" style="width:100%;">Wunsch eintragen</button>
+      </div>
+      <div id="freiwunsch-list"></div>
+    </div>
   </section>
 
   <!-- ARBEITSPLAN -->
@@ -364,7 +422,33 @@
     </div>
 
     <div class="subpanel" id="sub-abwesenheiten">
-      <div class="placeholder-box">Ferienanträge, Krank, Unfall, Militär, Schwangerschaft, Bezahlter Frei Tag folgen in einem der nächsten Bauabschnitte.</div>
+      <div class="subtabs" id="abwesenheiten-subtabs">
+        <button data-abwsub="ferienantraege" class="active">Ferienanträge</button>
+        <button data-abwsub="krank">Krank</button>
+        <button data-abwsub="unfall">Unfall</button>
+        <button data-abwsub="militaer">Militär</button>
+        <button data-abwsub="schwangerschaft">Schwangerschaft</button>
+        <button data-abwsub="bezahlter_frei_tag">Bezahlter Frei Tag</button>
+      </div>
+
+      <div class="abw-subpanel active" id="abw-sub-ferienantraege">
+        <div id="ferienantraege-admin-list"></div>
+      </div>
+
+      <div class="abw-subpanel" id="abw-sub-simple">
+        <div class="card form-card">
+          <div class="field"><label for="abw-mitarbeiter">Mitarbeiter</label><select id="abw-mitarbeiter"></select></div>
+          <div class="form-row-2">
+            <div class="field"><label for="abw-von">Von</label><input type="date" id="abw-von"></div>
+            <div class="field"><label for="abw-bis">Bis</label><input type="date" id="abw-bis"></div>
+          </div>
+          <div class="field"><label for="abw-bemerkung">Bemerkung</label><input type="text" id="abw-bemerkung"></div>
+          <span class="hint-text" id="abw-bemerkung-hint" style="display:none;">Diese Bemerkung wird im Arbeitsplan für alle sichtbar sein (z.B. "Hochzeit").</span>
+          <div class="error-text" id="abw-error"></div>
+          <button class="btn btn-primary" id="abw-submit-btn" style="width:100%; margin-top:10px;">Eintragen</button>
+        </div>
+        <div id="abw-simple-list"></div>
+      </div>
     </div>
 
     <div class="subpanel" id="sub-planung">

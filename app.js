@@ -3,6 +3,8 @@ import { initTeamTab } from "./team.js";
 import { initSettingsTab } from "./settings.js";
 import { initStempelTab } from "./stempel.js";
 import { initMonatTab } from "./monat.js";
+import { initAntraegeTab } from "./antraege.js";
+import { initAbwesenheitenTab } from "./abwesenheiten.js";
 
 let session = null;
 
@@ -35,14 +37,16 @@ async function start() {
 
   document.getElementById("logout-btn").addEventListener("click", logout);
 
-  // Stempel- und Monat-Tab gelten für alle Rollen
+  // Stempel-, Monat- und Anträge-Tab gelten für alle Rollen
   initStempelTab(session);
   initMonatTab(session);
+  initAntraegeTab(session);
 
   // Tab-Module initialisieren (laden erst Daten, wenn Admin-Bereich sichtbar wird)
   if (profile.role === "admin" || profile.role === "leitung") {
     initTeamTab(session);
     initSettingsTab(session);
+    initAbwesenheitenTab(session);
   }
 }
 
