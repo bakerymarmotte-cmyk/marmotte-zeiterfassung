@@ -15,8 +15,8 @@
   --color-danger: #E5484D;
 
   /* Typografie */
-  --font-display: "Archivo Black", "Arial Black", sans-serif;
-  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Century Gothic", CenturyGothic, "Jost", sans-serif;
+  --font-body: "Century Gothic", CenturyGothic, "Jost", sans-serif;
   --font-mono: "IBM Plex Mono", "Courier New", monospace;
 
   /* Sonstiges */
