@@ -2,6 +2,7 @@ import { requireSession, logout } from "./session.js";
 import { initTeamTab } from "./team.js";
 import { initSettingsTab } from "./settings.js";
 import { initStempelTab } from "./stempel.js";
+import { initMonatTab } from "./monat.js";
 
 let session = null;
 
@@ -34,8 +35,9 @@ async function start() {
 
   document.getElementById("logout-btn").addEventListener("click", logout);
 
-  // Stempel-Tab gilt für alle Rollen
+  // Stempel- und Monat-Tab gelten für alle Rollen
   initStempelTab(session);
+  initMonatTab(session);
 
   // Tab-Module initialisieren (laden erst Daten, wenn Admin-Bereich sichtbar wird)
   if (profile.role === "admin" || profile.role === "leitung") {

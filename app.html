@@ -196,6 +196,47 @@
   }
   .shift-row-main { display: flex; justify-content: space-between; font-size: 14.5px; font-weight: 600; }
   .shift-row-pause { font-size: 12.5px; color: var(--color-text-muted); margin-top: 4px; }
+
+  /* Monatsübersicht */
+  .month-nav {
+    display: flex; align-items: center; justify-content: center; gap: 20px;
+    padding: 18px 0 22px;
+  }
+  .month-nav-btn {
+    background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text);
+    width: 38px; height: 38px; border-radius: 50%; font-size: 18px;
+  }
+  .month-nav-btn:hover { border-color: var(--color-yellow); color: var(--color-yellow); }
+  .month-label { font-family: var(--font-display); font-weight: 700; font-size: 17px; min-width: 160px; text-align: center; }
+
+  .month-summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .summary-card {
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: 18px;
+  }
+  .summary-label { font-size: 12.5px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px; }
+  .summary-value { font-family: var(--font-mono); font-size: 22px; font-weight: 600; }
+  .summary-value.positive { color: var(--color-success); }
+  .summary-value.negative { color: var(--color-danger); }
+
+  .balance-card {
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: 16px 18px; margin-top: 12px;
+  }
+  .balance-value { font-family: var(--font-mono); font-size: 26px; font-weight: 700; margin-top: 4px; }
+  .balance-value.positive { color: var(--color-success); }
+  .balance-value.negative { color: var(--color-danger); }
+
+  .day-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 4px; border-bottom: 1px solid var(--color-border);
+  }
+  .day-row:last-child { border-bottom: none; }
+  .day-row .day-date { font-size: 14.5px; font-weight: 600; }
+  .day-row .day-sub { font-size: 12.5px; color: var(--color-text-muted); margin-top: 2px; }
+  .day-row .day-hours { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--color-text-muted); white-space: nowrap; }
+  .day-row.has-hours .day-hours { color: var(--color-text); }
+  .day-row.is-today .day-date { color: var(--color-yellow); }
 </style>
 </head>
 <body>
@@ -252,8 +293,43 @@
 
   <!-- MONAT -->
   <section class="tab-panel" id="panel-monat">
-    <h2 class="section-title">Monatsübersicht</h2>
-    <div class="placeholder-box">Der Monats-Tab folgt in einem der nächsten Bauabschnitte.</div>
+    <div class="month-nav">
+      <button id="month-prev" class="month-nav-btn">‹</button>
+      <span class="month-label" id="month-label">–</span>
+      <button id="month-next" class="month-nav-btn">›</button>
+    </div>
+
+    <div class="month-summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">Soll</div>
+        <div class="summary-value" id="month-soll">–</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Gearbeitet</div>
+        <div class="summary-value" id="month-ist">–</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Differenz</div>
+        <div class="summary-value" id="month-diff">–</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Ferientage bezogen</div>
+        <div class="summary-value" id="month-ferien">0 T</div>
+      </div>
+    </div>
+
+    <div class="balance-card">
+      <div class="summary-label" id="feriensaldo-label">Feriensaldo</div>
+      <div class="balance-value" id="feriensaldo-value">–</div>
+    </div>
+    <div class="balance-card">
+      <div class="summary-label" id="gleitzeit-label">Gleitzeitkonto</div>
+      <div class="balance-value" id="gleitzeit-value">–</div>
+    </div>
+
+    <div class="hint-text" style="margin: 4px 0 16px;">Ferientage &amp; Abwesenheiten erscheinen hier automatisch, sobald der Anträge- bzw. Abwesenheiten-Bereich fertig ist.</div>
+
+    <div id="month-day-list"></div>
   </section>
 
   <!-- ANTRÄGE -->
