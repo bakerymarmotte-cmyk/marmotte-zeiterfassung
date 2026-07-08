@@ -61,22 +61,30 @@ export function initStempelTab(session) {
 
   function render() {
     const status = getStatus(currentShifts);
-    const labels = {
-      idle: { btn: "Einstempeln", info: "Nicht eingestempelt" },
-      working: { btn: "Pause starten", info: `Eingestempelt seit ${formatTime(status.shift.start)}` },
-      onbreak: { btn: "Pause beenden", info: `Pause seit ${formatTime(status.shift.pause.start)}` },
-      afterbreak: { btn: "Ausstempeln", info: `Pause beendet um ${formatTime(status.shift.pause.ende)}` },
-    };
-    const l = labels[status.state];
-    bigBtn.textContent = l.btn;
-    statusText.textContent = l.info;
+    let btnLabel, infoLabel, btnClass;
 
-    bigBtn.className = "btn stempel-main-btn " + {
-      idle: "btn-primary",
-      working: "btn-yellow-outline",
-      onbreak: "btn-primary",
-      afterbreak: "btn-danger-solid",
-    }[status.state];
+    if (status.state === "idle") {
+      btnLabel = "Einstempeln";
+      infoLabel = "Nicht eingestempelt";
+      btnClass = "btn-primary";
+    } else if (status.state === "working") {
+      btnLabel = "Pause starten";
+      infoLabel = `Eingestempelt seit ${formatTime(status.shift.start)}`;
+      btnClass = "btn-yellow-outline";
+    } else if (status.state === "onbreak") {
+      btnLabel = "Pause beenden";
+      infoLabel = `Pause seit ${formatTime(status.shift.pause.start)}`;
+      btnClass = "btn-primary";
+    } else {
+      btnLabel = "Ausstempeln";
+      infoLabel = `Pause beendet um ${formatTime(status.shift.pause.ende)}`;
+      btnClass = "btn-danger-solid";
+    }
+
+    bigBtn.disabled = false;
+    bigBtn.textContent = btnLabel;
+    statusText.textContent = infoLabel;
+    bigBtn.className = "btn stempel-main-btn " + btnClass;
 
     renderShiftList();
   }
