@@ -1,6 +1,7 @@
 import { requireSession, logout } from "./session.js";
 import { initTeamTab } from "./team.js";
 import { initSettingsTab } from "./settings.js";
+import { initStempelTab } from "./stempel.js";
 
 let session = null;
 
@@ -32,6 +33,9 @@ async function start() {
   setupAdminSubtabs();
 
   document.getElementById("logout-btn").addEventListener("click", logout);
+
+  // Stempel-Tab gilt für alle Rollen
+  initStempelTab(session);
 
   // Tab-Module initialisieren (laden erst Daten, wenn Admin-Bereich sichtbar wird)
   if (profile.role === "admin" || profile.role === "leitung") {

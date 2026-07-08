@@ -146,6 +146,41 @@
   .inline-add-row { display: flex; gap: 8px; margin-top: 12px; }
   .inline-add-row input { flex: 1; }
   .inline-add-row .field { margin-bottom: 0; }
+
+  /* Stempeluhr */
+  .stempel-card {
+    padding: 32px 24px;
+    text-align: center;
+    margin-top: 10px;
+  }
+  .stempel-status {
+    font-size: 15px;
+    color: var(--color-text-muted);
+    margin-bottom: 20px;
+  }
+  .stempel-main-btn {
+    width: 100%;
+    padding: 22px;
+    font-size: 18px;
+    border-radius: var(--radius-md);
+  }
+  .btn-yellow-outline {
+    background: transparent;
+    color: var(--color-yellow);
+    border: 2px solid var(--color-yellow);
+  }
+  .btn-danger-solid {
+    background: var(--color-danger);
+    color: #fff;
+  }
+
+  .shift-list-title { font-size: 15px; color: var(--color-text-muted); margin: 26px 0 10px; }
+  .shift-row {
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 10px;
+  }
+  .shift-row-main { display: flex; justify-content: space-between; font-size: 14.5px; font-weight: 600; }
+  .shift-row-pause { font-size: 12.5px; color: var(--color-text-muted); margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -169,9 +204,16 @@
 <main>
 
   <!-- STEMPEL -->
-  <section class="tab-panel" id="panel-stempel">
+  <section class="tab-panel active" id="panel-stempel">
     <h2 class="section-title">Stempeluhr</h2>
-    <div class="placeholder-box">Der Stempel-Tab folgt im nächsten Bauabschnitt.</div>
+
+    <div class="card stempel-card">
+      <div class="stempel-status" id="stempel-status">Lädt …</div>
+      <button class="btn stempel-main-btn btn-primary" id="stempel-btn" disabled>…</button>
+    </div>
+
+    <h3 class="shift-list-title">Heutige Schichten</h3>
+    <div id="today-shift-list"></div>
   </section>
 
   <!-- MONAT -->
