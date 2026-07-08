@@ -311,6 +311,58 @@
   .add-shift-btn:hover { border-color: var(--color-yellow); color: var(--color-yellow); }
   .no-shifts-text { margin-bottom: 10px; }
 
+  /* ============================================================
+     Breite Bildschirme (Tablet/Desktop) – v.a. für Admin/Leitung
+     ============================================================ */
+  @media (min-width: 900px) {
+    .topbar, main, .bottom-nav {
+      max-width: 1100px;
+    }
+
+    /* Team: Mitarbeiterliste als Raster statt einer Spalte */
+    .employee-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    /* Live-Status: mehr Karten nebeneinander */
+    .status-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    /* Übersicht & Jahresübersicht: Karten nebeneinander */
+    #uebersicht-results, #jahr-results {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+    #uebersicht-results .uebersicht-card, #jahr-results .uebersicht-card {
+      margin-bottom: 0;
+    }
+
+    /* Arbeitsplan & Planung: Abteilungen nebeneinander statt untereinander */
+    #arbeitsplan-content, #planung-content {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+    #arbeitsplan-content .abteilung-block, #planung-content .abteilung-block {
+      margin-bottom: 0;
+    }
+
+    /* Modal etwas grosszügiger */
+    .modal-sheet { max-width: 560px; border-radius: 20px; }
+    .modal-backdrop { align-items: center; }
+  }
+
+  @media (min-width: 1300px) {
+    .status-grid { grid-template-columns: repeat(4, 1fr); }
+    #uebersicht-results, #jahr-results { grid-template-columns: repeat(3, 1fr); }
+  }
+
   /* Live-Status */
   .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .status-item {
