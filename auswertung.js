@@ -1,5 +1,10 @@
 import { db } from "./firebase-config.js";
-import { collection, doc, getDoc, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, doc, getDoc, getDocs, setDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const typLabels = {
+  krank: "Krank", unfall: "Unfall", militaer: "Militär",
+  schwangerschaft: "Schwangerschaft", bezahlter_frei_tag: "Bezahlter Frei Tag",
+};
 
 const statusStyles = {
   unterwegs: { icon: "🚗", color: "#5AC8E0", label: "Auf dem Weg" },
@@ -18,6 +23,8 @@ const statusStyles = {
 export function initAuswertungTab(session) {
   setupSubtabs();
   setupLiveStatus();
+  setupUebersicht(session);
+  setupDetailModal();
 }
 
 function setupSubtabs() {
@@ -154,4 +161,447 @@ function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str || "";
   return div.innerHTML;
+}
+
+// ==========================================================================
+// ÜBERSICHT (Zeitraum-Auswertung mit Filtern, Detail-Ansicht, PDF-Export)
+// ==========================================================================
+
+let uebersichtEmployeesCache = null;
+let uebersichtGeneral = null;
+let uebersichtFeiertage = null;
+let detailContext = null; // { emp, von, bis }
+let editingManualEntry = null; // { iso, idx }
+
+function setupUebersicht(session) {
+  const vonEl = document.getElementById("uebersicht-von");
+  const bisEl = document.getElementById("uebersicht-bis");
+  const abtEl = document.getElementById("uebersicht-abteilung");
+  const mitEl = document.getElementById("uebersicht-mitarbeiter");
+  const filterBtn = document.getElementById("uebersicht-filter-btn");
+
+  const now = new Date();
+  vonEl.value = toISODate(new Date(now.getFullYear(), now.getMonth(), 1));
+  bisEl.value = toISODate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+
+  loadEmployeeOptions().then(renderUebersicht);
+  filterBtn.addEventListener("click", renderUebersicht);
+
+  async function loadEmployeeOptions() {
+    const snap = await getDocs(query(collection(db, "users"), orderBy("name")));
+    uebersichtEmployeesCache = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+    mitEl.innerHTML =
+      '<option value="alle">Alle</option>' +
+      uebersichtEmployeesCache.map((e) => `<option value="${e.uid}">${escapeHtml(e.name)}</option>`).join("");
+  }
+
+  async function renderUebersicht() {
+    const resultsEl = document.getElementById("uebersicht-results");
+    resultsEl.innerHTML = '<div class="hint-text">Lädt…</div>';
+    if (!uebersichtEmployeesCache) await loadEmployeeOptions();
+
+    const [generalSnap, feiertageSnap] = await Promise.all([
+      getDoc(doc(db, "settings", "general")),
+      getDoc(doc(db, "settings", "feiertage")),
+    ]);
+    uebersichtGeneral = generalSnap.exists() ? generalSnap.data() : { wochenstunden100: 42, ferientageProJahr: 25 };
+    const feiertageList = feiertageSnap.exists() && Array.isArray(feiertageSnap.data().list) ? feiertageSnap.data().list : [];
+    uebersichtFeiertage = new Set(feiertageList.map((f) => f.date));
+
+    const von = vonEl.value;
+    const bis = bisEl.value;
+    const abtFilter = abtEl.value;
+    const mitFilter = mitEl.value;
+
+    let employees = uebersichtEmployeesCache;
+    if (mitFilter !== "alle") {
+      employees = employees.filter((e) => e.uid === mitFilter);
+    } else if (abtFilter !== "alle") {
+      employees = employees.filter((e) => getAbteilungen(e).includes(abtFilter));
+    }
+
+    const [ferienSnap, abwSnap] = await Promise.all([
+      getDocs(query(collection(db, "ferienantraege"), where("status", "==", "genehmigt"))),
+      getDocs(collection(db, "abwesenheiten")),
+    ]);
+    const allFerien = ferienSnap.docs.map((d) => d.data());
+    const allAbw = abwSnap.docs.map((d) => d.data());
+
+    resultsEl.innerHTML = "";
+    for (const emp of employees) {
+      const report = await computeEmployeeReport(emp, von, bis, allFerien, allAbw);
+      resultsEl.appendChild(renderEmployeeCard(emp, report, von, bis));
+    }
+    if (employees.length === 0) {
+      resultsEl.innerHTML = '<div class="hint-text">Keine Mitarbeiter gefunden.</div>';
+    }
+  }
+}
+
+async function computeEmployeeReport(emp, vonISO, bisISO, allFerien, allAbw) {
+  const myFerien = allFerien.filter((f) => f.uid === emp.uid);
+  const myAbw = allAbw.filter((a) => a.uid === emp.uid);
+  const todayISO = toISODate(new Date());
+  const start = new Date(vonISO);
+  const end = new Date(bisISO);
+
+  const fetchPromises = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const iso = toISODate(d);
+    fetchPromises.push(getDoc(doc(db, "timeentries", `${emp.uid}_${iso}`)).then((snap) => ({ iso, snap })));
+  }
+  const timeResults = await Promise.all(fetchPromises);
+  const timeMap = {};
+  timeResults.forEach(({ iso, snap }) => {
+    timeMap[iso] = snap.exists() && Array.isArray(snap.data().shifts) ? snap.data().shifts : [];
+  });
+
+  const stellenprozent = emp.stellenprozent || 100;
+  const arbeitstageProWoche = emp.arbeitstageProWoche || 5;
+  const isStundenlohn = emp.anstellungsart === "stundenlohn";
+  const tagessollMinuten = ((uebersichtGeneral.wochenstunden100 || 42) * (stellenprozent / 100)) / arbeitstageProWoche * 60;
+
+  const dailyRows = [];
+  let istMinuten = 0;
+  let sollMinuten = 0;
+  let ferienBezogenDays = 0;
+  const abwesenheitenCounts = {};
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const iso = toISODate(d);
+    const weekday = d.getDay();
+    const isWeekend = weekday === 0 || weekday === 6;
+    const isFeiertag = uebersichtFeiertage.has(iso);
+
+    const ferienHit = myFerien.find((f) => iso >= f.von && iso <= f.bis);
+    const abwHit = myAbw.find((a) => iso >= a.von && iso <= a.bis);
+    const shifts = timeMap[iso] || [];
+
+    let dayMinutes = 0;
+    shifts.forEach((s) => {
+      const st = new Date(s.start);
+      const en = s.ende ? new Date(s.ende) : iso === todayISO ? new Date() : null;
+      if (!en) return;
+      let m = (en - st) / 60000;
+      (s.pausen || []).forEach((p) => {
+        const ps = new Date(p.start);
+        const pe = p.ende ? new Date(p.ende) : new Date();
+        m -= (pe - ps) / 60000;
+      });
+      dayMinutes += Math.max(0, m);
+    });
+    istMinuten += dayMinutes;
+
+    if (!isStundenlohn && !isWeekend && !isFeiertag && !ferienHit && !abwHit) {
+      sollMinuten += tagessollMinuten;
+    }
+    if (ferienHit && !isWeekend && !isFeiertag) ferienBezogenDays++;
+    if (abwHit) abwesenheitenCounts[abwHit.typ] = (abwesenheitenCounts[abwHit.typ] || 0) + 1;
+
+    dailyRows.push({ iso, weekday, shifts, ferien: !!ferienHit, abwesenheit: abwHit || null });
+  }
+
+  const diffMinuten = istMinuten - sollMinuten;
+
+  const year = start.getFullYear();
+  const yearStartISO = `${year}-01-01`;
+  const ferienVorPeriode = myFerien
+    .flatMap((f) => expandRange(f.von, f.bis))
+    .filter((iso) => iso >= yearStartISO && iso < vonISO)
+    .filter((iso) => {
+      const dd = new Date(iso);
+      return dd.getDay() !== 0 && dd.getDay() !== 6 && !uebersichtFeiertage.has(iso);
+    }).length;
+  const ferienanspruch = (uebersichtGeneral.ferientageProJahr || 25) * (stellenprozent / 100);
+  const feriensaldoStart = ferienanspruch - ferienVorPeriode;
+  const feriensaldoEnde = feriensaldoStart - ferienBezogenDays;
+
+  return { sollMinuten, istMinuten, diffMinuten, ferienBezogenDays, abwesenheitenCounts, dailyRows, feriensaldoStart, feriensaldoEnde, isStundenlohn };
+}
+
+function expandRange(von, bis) {
+  const result = [];
+  if (!von || !bis) return result;
+  for (let d = new Date(von); toISODate(d) <= bis; d.setDate(d.getDate() + 1)) result.push(toISODate(d));
+  return result;
+}
+
+const abwLabelsShort = { krank: "Krank", unfall: "Unfall", militaer: "Militär", schwangerschaft: "Schwang.", bezahlter_frei_tag: "Frei Tag" };
+const abwIconsShort = { krank: "🤒", unfall: "🚑", militaer: "🎖️", schwangerschaft: "🤰", bezahlter_frei_tag: "🎉" };
+
+function renderEmployeeCard(emp, report, von, bis) {
+  const card = document.createElement("div");
+  card.className = "uebersicht-card";
+
+  const abteilungen = getAbteilungen(emp);
+  const pills = abteilungen.map((a) => `<span class="uebersicht-pill">${escapeHtml(a)}</span>`).join(" ");
+  const slPill = report.isStundenlohn ? '<span class="uebersicht-pill">SL</span>' : "";
+
+  const abwStatsHtml = Object.entries(report.abwesenheitenCounts)
+    .map(([typ, count]) => `<span>${abwIconsShort[typ] || ""} ${abwLabelsShort[typ] || typ} ${count}T</span>`)
+    .join("");
+
+  const statsHtml = report.isStundenlohn
+    ? `<span>Gearbeitet <strong>${formatMinutes(report.istMinuten)}</strong></span><span>Ferien <strong>${report.ferienBezogenDays}T</strong></span>${abwStatsHtml}`
+    : `<span>Soll <strong>${formatMinutes(report.sollMinuten)}</strong></span>
+       <span>Ist <strong>${formatMinutes(report.istMinuten)}</strong></span>
+       <span class="${report.diffMinuten < 0 ? "negative" : "positive"}">Diff <strong>${report.diffMinuten >= 0 ? "+" : ""}${formatMinutes(report.diffMinuten)}</strong></span>
+       <span>Ferien <strong>${report.ferienBezogenDays}T</strong></span>${abwStatsHtml}`;
+
+  card.innerHTML = `
+    <div class="uebersicht-top">
+      <div class="uebersicht-name-row">[${escapeHtml(emp.personalnummer || "–")}] ${escapeHtml(emp.name || "")} ${slPill} ${pills}</div>
+      <div class="uebersicht-actions">
+        <button class="btn btn-secondary" data-detail>Detail</button>
+        <button class="btn btn-primary" data-pdf>📄 PDF</button>
+      </div>
+    </div>
+    <div class="uebersicht-stats">${statsHtml}</div>
+  `;
+
+  card.querySelector("[data-detail]").addEventListener("click", () => openDetailModal(emp, von, bis));
+  card.querySelector("[data-pdf]").addEventListener("click", () => generatePdf(emp, report, von, bis));
+
+  return card;
+}
+
+// ---- Detail-Modal ----
+
+function setupDetailModal() {
+  document.getElementById("detail-add-manual-btn").addEventListener("click", () => openManualForm(detailContext.von, null, null));
+  document.getElementById("manual-cancel-btn").addEventListener("click", () => {
+    document.getElementById("detail-manual-form").style.display = "none";
+  });
+  document.getElementById("manual-save-btn").addEventListener("click", saveManualEntry);
+  document.getElementById("detail-close-btn").addEventListener("click", () => {
+    document.getElementById("detail-modal").classList.remove("active");
+  });
+}
+
+async function openDetailModal(emp, von, bis) {
+  detailContext = { emp, von, bis };
+  document.getElementById("detail-modal-title").textContent = emp.name;
+  document.getElementById("detail-manual-form").style.display = "none";
+  document.getElementById("detail-modal").classList.add("active");
+  await renderDetailList();
+}
+
+async function renderDetailList() {
+  const listEl = document.getElementById("detail-shift-list");
+  listEl.innerHTML = '<div class="hint-text">Lädt…</div>';
+  const { emp, von, bis } = detailContext;
+  const start = new Date(von);
+  const end = new Date(bis);
+
+  const fetches = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const iso = toISODate(d);
+    fetches.push(getDoc(doc(db, "timeentries", `${emp.uid}_${iso}`)).then((snap) => ({ iso, snap })));
+  }
+  const results = await Promise.all(fetches);
+
+  listEl.innerHTML = "";
+  let any = false;
+  results.forEach(({ iso, snap }) => {
+    const shifts = snap.exists() && Array.isArray(snap.data().shifts) ? snap.data().shifts : [];
+    shifts.forEach((s, idx) => {
+      any = true;
+      const range = `${formatTime(s.start)} – ${s.ende ? formatTime(s.ende) : "läuft"}`;
+      const pausenText = (s.pausen || []).map((p) => `Pause ${formatTime(p.start)}–${p.ende ? formatTime(p.ende) : "läuft"}`).join(", ");
+      const row = document.createElement("div");
+      row.className = "detail-shift-row";
+      row.innerHTML = `
+        <div>
+          <div class="date">${formatDateLong(iso)}${s.manuell ? '<span class="manual-badge">MANUELL</span>' : ""}</div>
+          <div class="sub">${range}${pausenText ? " · " + pausenText : ""}</div>
+        </div>
+        <div class="detail-shift-actions">
+          <button class="icon-btn" data-edit-iso="${iso}" data-edit-idx="${idx}">✏️</button>
+          <button class="icon-btn icon-btn-danger" data-del-iso="${iso}" data-del-idx="${idx}">🗑️</button>
+        </div>`;
+      listEl.appendChild(row);
+    });
+  });
+  if (!any) listEl.innerHTML = '<div class="hint-text">Keine Schichten in diesem Zeitraum.</div>';
+
+  listEl.querySelectorAll("[data-del-iso]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Diesen Eintrag wirklich löschen?")) return;
+      const ref = doc(db, "timeentries", `${detailContext.emp.uid}_${btn.dataset.delIso}`);
+      const snap = await getDoc(ref);
+      const shifts = snap.data().shifts;
+      shifts.splice(Number(btn.dataset.delIdx), 1);
+      await setDoc(ref, { ...snap.data(), shifts });
+      renderDetailList();
+    });
+  });
+  listEl.querySelectorAll("[data-edit-iso]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const ref = doc(db, "timeentries", `${detailContext.emp.uid}_${btn.dataset.editIso}`);
+      const snap = await getDoc(ref);
+      const shift = snap.data().shifts[Number(btn.dataset.editIdx)];
+      openManualForm(btn.dataset.editIso, shift, Number(btn.dataset.editIdx));
+    });
+  });
+}
+
+function openManualForm(iso, existing, idx) {
+  editingManualEntry = { iso: existing ? iso : null, idx: existing ? idx : null };
+  document.getElementById("manual-error").textContent = "";
+  document.getElementById("detail-manual-form").style.display = "block";
+  document.getElementById("manual-datum").value = iso || detailContext.von;
+  document.getElementById("manual-von").value = existing ? formatTimeHM(existing.start) : "";
+  document.getElementById("manual-bis").value = existing && existing.ende ? formatTimeHM(existing.ende) : "";
+  const pause = existing && existing.pausen && existing.pausen[0];
+  document.getElementById("manual-pause-von").value = pause ? formatTimeHM(pause.start) : "";
+  document.getElementById("manual-pause-bis").value = pause && pause.ende ? formatTimeHM(pause.ende) : "";
+}
+
+async function saveManualEntry() {
+  const errorEl = document.getElementById("manual-error");
+  errorEl.textContent = "";
+  const datum = document.getElementById("manual-datum").value;
+  const von = document.getElementById("manual-von").value;
+  const bis = document.getElementById("manual-bis").value;
+  const pvon = document.getElementById("manual-pause-von").value;
+  const pbis = document.getElementById("manual-pause-bis").value;
+
+  if (!datum || !von || !bis) {
+    errorEl.textContent = "Bitte Datum, Von und Bis ausfüllen.";
+    return;
+  }
+
+  const newShift = {
+    start: combineDateTime(datum, von),
+    ende: combineDateTime(datum, bis),
+    pausen: pvon && pbis ? [{ start: combineDateTime(datum, pvon), ende: combineDateTime(datum, pbis) }] : [],
+    manuell: true,
+  };
+
+  const ref = doc(db, "timeentries", `${detailContext.emp.uid}_${datum}`);
+  const snap = await getDoc(ref);
+  let shifts = snap.exists() && Array.isArray(snap.data().shifts) ? snap.data().shifts : [];
+
+  if (editingManualEntry && editingManualEntry.idx !== null && editingManualEntry.iso === datum) {
+    shifts[editingManualEntry.idx] = newShift;
+  } else {
+    shifts.push(newShift);
+  }
+
+  await setDoc(ref, { uid: detailContext.emp.uid, date: datum, shifts });
+  document.getElementById("detail-manual-form").style.display = "none";
+  renderDetailList();
+}
+
+function combineDateTime(dateISO, timeHM) {
+  return new Date(`${dateISO}T${timeHM}:00`).toISOString();
+}
+
+function formatTimeHM(iso) {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatDateLong(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString("de-CH", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+// ---- PDF-Export ----
+
+function generatePdf(emp, report, von, bis) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF();
+
+  const monthYear = new Date(von).toLocaleDateString("de-CH", { month: "long", year: "numeric" });
+  const abteilungen = getAbteilungen(emp).join(", ");
+  const anstellung = report.isStundenlohn ? "Stundenlöhner" : `Festangestellt (${emp.stellenprozent || 100}%)`;
+
+  pdf.setFontSize(16);
+  pdf.text("Marmotte", 14, 18);
+  pdf.setFontSize(12);
+  pdf.text("Monatsbericht Zeiterfassung", 14, 25);
+
+  pdf.setFontSize(9.5);
+  pdf.text(`Name: ${emp.name}   Abteilung: ${abteilungen}   Personalnummer: ${emp.personalnummer || "–"}`, 14, 34);
+  pdf.text(`Periode: ${formatDatePdf(von)} – ${formatDatePdf(bis)}   Anstellung: ${anstellung}`, 14, 40);
+
+  if (!report.isStundenlohn) {
+    pdf.text(
+      `Soll: ${formatMinutes(report.sollMinuten)}   Gearbeitet: ${formatMinutes(report.istMinuten)}   Differenz: ${report.diffMinuten >= 0 ? "+" : ""}${formatMinutes(report.diffMinuten)}`,
+      14, 48
+    );
+  } else {
+    pdf.text(`Gearbeitet: ${formatMinutes(report.istMinuten)}`, 14, 48);
+  }
+  pdf.text(`Feriensaldo Monatsanfang: ${report.feriensaldoStart.toFixed(1)} Tage   Ferien bezogen: ${report.ferienBezogenDays} Tage`, 14, 54);
+  pdf.text(`Feriensaldo Monatsende: ${report.feriensaldoEnde.toFixed(1)} Tage`, 14, 60);
+
+  const rows = [];
+  report.dailyRows.forEach((day) => {
+    const dateLabel = formatDateLong(day.iso);
+    if (day.ferien) {
+      rows.push([dateLabel, { content: "Ferien bezogen", colSpan: 5 }]);
+    } else if (day.abwesenheit) {
+      const label = day.abwesenheit.typ === "bezahlter_frei_tag"
+        ? (day.abwesenheit.bemerkung || "Bezahlter Frei Tag")
+        : (typLabels[day.abwesenheit.typ] || day.abwesenheit.typ);
+      rows.push([dateLabel, { content: label, colSpan: 5 }]);
+    } else if (day.shifts.length > 0) {
+      day.shifts.forEach((s, i) => {
+        const pause = s.pausen && s.pausen[0];
+        let minutes = s.ende ? (new Date(s.ende) - new Date(s.start)) / 60000 : 0;
+        if (pause && pause.ende) minutes -= (new Date(pause.ende) - new Date(pause.start)) / 60000;
+        rows.push([
+          i === 0 ? dateLabel : "",
+          formatTime(s.start),
+          pause ? formatTime(pause.start) : "—",
+          pause && pause.ende ? formatTime(pause.ende) : "—",
+          s.ende ? formatTime(s.ende) : "läuft",
+          formatMinutes(Math.max(0, minutes)),
+        ]);
+      });
+    } else {
+      rows.push([dateLabel, { content: "Frei", colSpan: 5 }]);
+    }
+  });
+
+  pdf.autoTable({
+    startY: 66,
+    head: [["Datum", "Von", "Pause von", "Pause bis", "Bis", "Gearbeitet"]],
+    body: rows,
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [30, 30, 30] },
+    margin: { bottom: 20 },
+  });
+
+  const finalY = pdf.lastAutoTable.finalY + 10;
+  pdf.setFontSize(10);
+  pdf.text(`Total gearbeitet: ${formatMinutes(report.istMinuten)}`, 14, finalY);
+  pdf.setFontSize(9);
+  pdf.text("Arbeitgeber: Unterschrift / Datum", 14, finalY + 20);
+  pdf.text("Arbeitnehmer: Unterschrift / Datum", 120, finalY + 20);
+
+  const totalPages = pdf.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    pdf.setPage(i);
+    pdf.setFontSize(8);
+    pdf.text(`Seite ${i} von ${totalPages}`, 14, pdf.internal.pageSize.height - 10);
+  }
+
+  const filename = `${(emp.name || "Mitarbeiter").replace(/\s+/g, "_")}_Stundenabrechnung_${monthYear.replace(" ", "_")}.pdf`;
+  pdf.save(filename);
+}
+
+function formatDatePdf(iso) {
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+function formatMinutes(totalMinutes) {
+  const sign = totalMinutes < 0 ? "-" : "";
+  const abs = Math.round(Math.abs(totalMinutes));
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  return `${sign}${h}h ${String(m).padStart(2, "0")}m`;
 }

@@ -13,6 +13,8 @@
 <meta name="apple-mobile-web-app-title" content="Marmotte">
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
   body { padding-bottom: 0; }
 
@@ -319,6 +321,33 @@
   .status-item .status-label { font-size: 13px; font-weight: 700; margin-top: 6px; }
   .status-item .status-time { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
 
+  /* Übersicht (Auswertung) */
+  .uebersicht-card {
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 10px;
+  }
+  .uebersicht-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+  .uebersicht-name-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-weight: 700; font-size: 14.5px; }
+  .uebersicht-pill {
+    font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+    background: var(--color-surface-raised); color: var(--color-text-muted); text-transform: uppercase;
+  }
+  .uebersicht-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .uebersicht-actions .btn { padding: 8px 12px; font-size: 12.5px; }
+  .uebersicht-stats { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--color-text-muted); }
+  .uebersicht-stats strong { color: var(--color-text); }
+  .uebersicht-stats .negative strong { color: var(--color-danger); }
+  .uebersicht-stats .positive strong { color: var(--color-success); }
+
+  .detail-shift-row {
+    background: var(--color-surface-raised); border-radius: var(--radius-md);
+    padding: 10px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+  .detail-shift-row .date { font-weight: 700; font-size: 13.5px; }
+  .detail-shift-row .sub { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+  .manual-badge { font-size: 10px; font-weight: 700; color: var(--color-yellow); margin-left: 6px; }
+  .detail-shift-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
   /* Radio-/Checkbox-Pills im Mitarbeiter-Formular */
   .radio-row, .checkbox-row { display: flex; gap: 8px; flex-wrap: wrap; }
   .radio-pill, .checkbox-pill {
@@ -571,8 +600,8 @@
     <div class="subpanel" id="sub-auswertung">
       <div class="subtabs" id="auswertung-subtabs">
         <button data-auswsub="live" class="active">Live-Status</button>
-        <button data-auswsub="monat">Monatsübersicht</button>
-        <button data-auswsub="jahr">Jahresübersicht</button>
+        <button data-auswsub="monat">Übersicht</button>
+        <button data-auswsub="jahr">Jahr</button>
       </div>
 
       <div class="abw-subpanel active" id="ausw-sub-live">
@@ -589,7 +618,29 @@
       </div>
 
       <div class="abw-subpanel" id="ausw-sub-monat">
-        <div class="placeholder-box">Die Monatsübersicht folgt im nächsten Bauabschnitt.</div>
+        <div class="card form-card">
+          <div class="form-row-2">
+            <div class="field"><label for="uebersicht-von">Von</label><input type="date" id="uebersicht-von"></div>
+            <div class="field"><label for="uebersicht-bis">Bis</label><input type="date" id="uebersicht-bis"></div>
+          </div>
+          <div class="form-row-2">
+            <div class="field">
+              <label for="uebersicht-abteilung">Abteilung</label>
+              <select id="uebersicht-abteilung">
+                <option value="alle">Alle</option>
+                <option value="Bäckerei">Bäckerei</option>
+                <option value="Tearoom&Laden">Tearoom & Laden</option>
+                <option value="Dorfladen">Dorfladen</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="uebersicht-mitarbeiter">Mitarbeiter</label>
+              <select id="uebersicht-mitarbeiter"><option value="alle">Alle</option></select>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="uebersicht-filter-btn" style="width:100%;">Filtern</button>
+        </div>
+        <div id="uebersicht-results"></div>
       </div>
 
       <div class="abw-subpanel" id="ausw-sub-jahr">
@@ -696,6 +747,35 @@
         <button type="submit" class="btn btn-primary" id="shift-save-btn">Speichern</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Modal: Mitarbeiter-Detail (Übersicht) -->
+<div class="modal-backdrop" id="detail-modal">
+  <div class="modal-sheet">
+    <h3 id="detail-modal-title">Mitarbeiter</h3>
+    <button class="btn btn-primary" id="detail-add-manual-btn" style="width:100%; margin-bottom:16px;">+ Eintrag manuell hinzufügen</button>
+
+    <div id="detail-manual-form" style="display:none; margin-bottom:18px;">
+      <div class="field"><label for="manual-datum">Datum</label><input type="date" id="manual-datum"></div>
+      <div class="form-row-2">
+        <div class="field"><label for="manual-von">Von</label><input type="time" id="manual-von"></div>
+        <div class="field"><label for="manual-bis">Bis</label><input type="time" id="manual-bis"></div>
+      </div>
+      <div class="form-row-2">
+        <div class="field"><label for="manual-pause-von">Pause von (optional)</label><input type="time" id="manual-pause-von"></div>
+        <div class="field"><label for="manual-pause-bis">Pause bis (optional)</label><input type="time" id="manual-pause-bis"></div>
+      </div>
+      <div class="error-text" id="manual-error"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="manual-cancel-btn">Abbrechen</button>
+        <button type="button" class="btn btn-primary" id="manual-save-btn">Speichern</button>
+      </div>
+    </div>
+
+    <div id="detail-shift-list"></div>
+
+    <button class="btn btn-secondary" id="detail-close-btn" style="width:100%; margin-top:16px;">Schliessen</button>
   </div>
 </div>
 
