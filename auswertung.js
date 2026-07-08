@@ -72,7 +72,9 @@ function setupLiveStatus() {
       filtered.map((e) => getDoc(doc(db, "timeentries", `${e.uid}_${todayISO}`)))
     );
 
-    listEl.innerHTML = "";
+    listEl.innerHTML = '<div class="status-grid" id="status-grid-inner"></div>';
+    const gridEl = document.getElementById("status-grid-inner");
+
     filtered.forEach((emp, i) => {
       const shifts = timeentryResults[i].exists() && Array.isArray(timeentryResults[i].data().shifts)
         ? timeentryResults[i].data().shifts : [];
@@ -85,16 +87,13 @@ function setupLiveStatus() {
 
       const item = document.createElement("div");
       item.className = "status-item";
+      item.style.border = `1px solid ${style.color}`;
       item.innerHTML = `
-        <div class="info">
-          <div class="name">${escapeHtml(emp.name || "")}</div>
-          <div class="meta">${escapeHtml(getAbteilungen(emp).join(", ") || "–")}${status.sub ? " · " + escapeHtml(status.sub) : ""}</div>
-        </div>
-        <span class="status-pill" style="background:${style.color}22; color:${style.color};">
-          ${style.icon} ${style.label}
-        </span>
+        <div class="name-row">${style.icon} <span>${escapeHtml(emp.name || "")}</span></div>
+        <div class="status-label" style="color:${style.color};">${style.label}</div>
+        ${status.sub ? `<div class="status-time">${escapeHtml(status.sub)}</div>` : ""}
       `;
-      listEl.appendChild(item);
+      gridEl.appendChild(item);
     });
 
     if (filtered.length === 0) {
@@ -118,7 +117,7 @@ function determineStatus(shifts, planEntry, ferienEntry, abwEntry) {
   }
 
   if (shifts.length > 0) {
-    return { state: "feierabend", sub: `seit ${formatTime(last.ende)}` };
+    return { state: "feierabend", sub: `${formatTime(last.start)}–${formatTime(last.ende)}` };
   }
 
   if (planEntry) {
