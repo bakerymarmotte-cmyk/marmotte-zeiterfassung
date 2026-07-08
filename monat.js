@@ -132,13 +132,17 @@ export function initMonatTab(session) {
         const absence = absenceDates.get(iso);
         let subContent = "Frei";
         let subStyle = "";
+        let rowStyle = "";
         if (absence) {
           const style = absenceStyles[absence.type];
           subContent = `${style ? style.icon + " " : ""}${escapeHtml(absence.label)}`;
-          subStyle = style ? ` style="color:${style.color};"` : "";
+          if (style) {
+            subStyle = ` style="color:${style.color};"`;
+            rowStyle = ` style="border:1px solid ${style.color}; border-radius: var(--radius-md); padding: 12px 10px; margin-bottom: 6px; border-bottom-width: 1px;"`;
+          }
         }
         rows.push(`
-          <div class="day-row${isToday ? " is-today" : ""}">
+          <div class="day-row${isToday ? " is-today" : ""}"${rowStyle}>
             <div>
               <div class="day-date">${dateLabel}</div>
               <div class="day-sub"${subStyle}>${subContent}</div>
