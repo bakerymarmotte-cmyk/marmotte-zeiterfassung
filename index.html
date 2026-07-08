@@ -133,11 +133,12 @@
       sessionStorage.setItem("marmotte_role", userData.role || "mitarbeiter");
       sessionStorage.setItem("marmotte_name", userData.name || "");
 
-      if (userData.role === "admin" || userData.role === "leitung") {
-        window.location.href = "admin.html";
-      } else {
-        window.location.href = "dashboard.html";
+      if (userData.mustChangePassword) {
+        window.location.href = "change-password.html";
+        return;
       }
+
+      window.location.href = "app.html";
 
     } catch (err) {
       console.error(err);
