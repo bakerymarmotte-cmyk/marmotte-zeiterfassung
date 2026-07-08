@@ -2,7 +2,7 @@
 // Sorgt dafür, dass die App auf dem Smartphone als "installierbar" erkannt wird
 // und die Grundseiten auch bei kurzzeitig fehlender Verbindung geladen werden können.
 
-const CACHE_NAME = "marmotte-shell-v1";
+const CACHE_NAME = "marmotte-shell-v2";
 const SHELL_FILES = [
   "./index.html",
   "./style.css",
@@ -25,12 +25,14 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Netzwerk zuerst, bei Fehler auf Cache zurückfallen (Live-Daten von Firebase bleiben unberührt,
-// da Firebase-Anfragen an eine andere Domain gehen und hier nicht abgefangen werden)
+// Nur die Grund-Shell-Dateien (HTML/CSS/Manifest) werden zwischengespeichert.
+// JavaScript-Module (.js) werden absichtlich NICHT gecacht, damit Updates am Code
+// immer sofort ankommen und nicht durch eine alte, gecachte Version blockiert werden.
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.endsWith(".js")) return; // JS immer frisch vom Netzwerk laden
 
   event.respondWith(
     fetch(event.request)
