@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marmotte Zeiterfassung</title>
+<link rel="icon" href="assets/icon_zeiterfassung_favicon32.png" type="image/png">
+<link rel="apple-touch-icon" href="assets/icon_zeiterfassung_apple-touch-180.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1A1A1A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Marmotte">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  body { padding-bottom: 78px; } /* Platz für die untere Nav-Leiste */
+
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px 8px;
+    max-width: 640px; margin: 0 auto;
+  }
+  .topbar .brand { font-family: var(--font-display); color: var(--color-yellow); font-size: 18px; }
+  .topbar .who { display: flex; align-items: center; gap: 10px; }
+  .topbar .who .name { font-size: 13.5px; color: var(--color-text-muted); }
+  .topbar .logout-btn {
+    background: transparent; border: 1px solid var(--color-border); color: var(--color-text-muted);
+    border-radius: 8px; padding: 7px 12px; font-size: 12.5px;
+  }
+  .topbar .logout-btn:hover { border-color: var(--color-danger); color: var(--color-danger); }
+
+  main { max-width: 640px; margin: 0 auto; padding: 8px 20px 40px; }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .placeholder-box {
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 14px;
+    margin-top: 20px;
+  }
+
+  /* Untere Hauptnavigation */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    z-index: 50;
+  }
+  .bottom-nav button {
+    flex: 1;
+    background: none; border: none; color: var(--color-text-muted);
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 10px 4px 8px;
+    font-size: 11px; font-family: var(--font-body); font-weight: 600;
+  }
+  .bottom-nav button .icon { font-size: 20px; line-height: 1; }
+  .bottom-nav button.active { color: var(--color-yellow); }
+
+  /* Sekundäre Tabs (z.B. innerhalb Admin/Leitung) */
+  .subtabs {
+    display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 18px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .subtabs::-webkit-scrollbar { display: none; }
+  .subtabs button {
+    white-space: nowrap;
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    border-radius: 999px; padding: 8px 16px; font-size: 13px; font-weight: 600;
+  }
+  .subtabs button.active { background: var(--color-yellow); color: #1a1400; border-color: var(--color-yellow); }
+
+  .subpanel { display: none; }
+  .subpanel.active { display: block; }
+
+  h2.section-title { font-size: 19px; margin: 4px 0 18px; }
+
+  /* Team-Liste */
+  .employee-list { display: flex; flex-direction: column; gap: 10px; }
+  .employee-item {
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    cursor: pointer;
+  }
+  .employee-item:hover { border-color: var(--color-yellow); }
+  .employee-item .info .name { font-weight: 700; font-size: 15px; }
+  .employee-item .info .meta { font-size: 12.5px; color: var(--color-text-muted); margin-top: 2px; }
+  .badge {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    padding: 3px 9px; border-radius: 999px; background: var(--color-surface-raised); color: var(--color-text-muted);
+  }
+  .badge.role-admin { background: rgba(253,214,0,0.15); color: var(--color-yellow); }
+  .badge.role-leitung { background: rgba(76,175,125,0.15); color: var(--color-success); }
+
+  .fab {
+    position: fixed; bottom: 92px; right: 20px;
+    background: var(--color-yellow); color: #1a1400;
+    width: 54px; height: 54px; border-radius: 50%;
+    border: none; font-size: 28px; font-weight: 700;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+    z-index: 40;
+  }
+
+  /* Modal */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    align-items: flex-end; justify-content: center; z-index: 100;
+  }
+  .modal-backdrop.active { display: flex; }
+  .modal-sheet {
+    background: var(--color-surface); border-radius: 20px 20px 0 0;
+    width: 100%; max-width: 640px; max-height: 88vh; overflow-y: auto;
+    padding: 24px 22px calc(24px + env(safe-area-inset-bottom, 0));
+  }
+  .modal-sheet h3 { margin: 0 0 20px; font-size: 18px; }
+  .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 8px; }
+  .modal-actions .btn { flex: 1; }
+
+  .settings-card {
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: 18px 18px 6px; margin-bottom: 18px;
+  }
+  .settings-card h4 { margin: 0 0 14px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); }
+
+  .holiday-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid var(--color-border);
+    font-size: 14px;
+  }
+  .holiday-row:last-child { border-bottom: none; }
+  .holiday-row .date { font-family: var(--font-mono); color: var(--color-yellow); font-size: 13px; min-width: 88px; }
+  .holiday-row .remove-btn { background: none; border: none; color: var(--color-text-muted); font-size: 18px; }
+  .holiday-row .remove-btn:hover { color: var(--color-danger); }
+
+  .inline-add-row { display: flex; gap: 8px; margin-top: 12px; }
+  .inline-add-row input { flex: 1; }
+  .inline-add-row .field { margin-bottom: 0; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">MARMOTTE</div>
+  <div class="who">
+    <span class="name" id="user-name-label"></span>
+    <button class="logout-btn" id="logout-btn">Abmelden</button>
+  </div>
+</div>
+
+<main>
+
+  <!-- STEMPEL -->
+  <section class="tab-panel" id="panel-stempel">
+    <h2 class="section-title">Stempeluhr</h2>
+    <div class="placeholder-box">Der Stempel-Tab folgt im nächsten Bauabschnitt.</div>
+  </section>
+
+  <!-- MONAT -->
+  <section class="tab-panel" id="panel-monat">
+    <h2 class="section-title">Monatsübersicht</h2>
+    <div class="placeholder-box">Der Monats-Tab folgt in einem der nächsten Bauabschnitte.</div>
+  </section>
+
+  <!-- ANTRÄGE -->
+  <section class="tab-panel" id="panel-antraege">
+    <h2 class="section-title">Anträge</h2>
+    <div class="placeholder-box">Ferien &amp; Frei-Wünsche folgen in einem der nächsten Bauabschnitte.</div>
+  </section>
+
+  <!-- ARBEITSPLAN -->
+  <section class="tab-panel" id="panel-arbeitsplan">
+    <h2 class="section-title">Arbeitsplan</h2>
+    <div class="placeholder-box">Der Arbeitsplan folgt in einem der nächsten Bauabschnitte.</div>
+  </section>
+
+  <!-- ADMIN/LEITUNG -->
+  <section class="tab-panel" id="panel-admin">
+    <div class="subtabs" id="admin-subtabs">
+      <button data-sub="team" class="active">Team</button>
+      <button data-sub="auswertung">Auswertung</button>
+      <button data-sub="abwesenheiten">Abwesenheiten</button>
+      <button data-sub="planung">Planung</button>
+      <button data-sub="einstellungen">Einstellungen</button>
+    </div>
+
+    <div class="subpanel active" id="sub-team">
+      <div id="employee-list" class="employee-list"></div>
+      <button class="fab" id="add-employee-fab" title="Mitarbeiter hinzufügen">+</button>
+    </div>
+
+    <div class="subpanel" id="sub-auswertung">
+      <div class="placeholder-box">Live-Status, Monats- &amp; Jahresübersicht folgen in einem der nächsten Bauabschnitte.</div>
+    </div>
+
+    <div class="subpanel" id="sub-abwesenheiten">
+      <div class="placeholder-box">Ferienanträge, Krank, Unfall, Militär, Schwangerschaft, Bezahlter Frei Tag folgen in einem der nächsten Bauabschnitte.</div>
+    </div>
+
+    <div class="subpanel" id="sub-planung">
+      <div class="placeholder-box">Die Arbeitsplan-Erstellung folgt in einem der nächsten Bauabschnitte.</div>
+    </div>
+
+    <div class="subpanel" id="sub-einstellungen">
+      <div class="settings-card" id="grundeinstellungen-card">
+        <h4>Grundeinstellungen</h4>
+        <div class="field">
+          <label for="wochenstunden100">Wochenstunden bei 100% Anstellung</label>
+          <input type="number" id="wochenstunden100" step="0.1" min="1" max="60">
+        </div>
+        <div class="field">
+          <label for="ferientage-jahr">Ferientage pro Jahr (bei 100%)</label>
+          <input type="number" id="ferientage-jahr" step="0.5" min="1" max="60">
+        </div>
+        <button class="btn btn-primary" id="save-grundeinstellungen-btn" style="width:100%; margin-bottom:18px;">Speichern</button>
+      </div>
+
+      <div class="settings-card">
+        <h4>Feiertage Kanton Bern</h4>
+        <div id="holiday-list"></div>
+        <div class="inline-add-row">
+          <div class="field"><input type="date" id="new-holiday-date"></div>
+          <div class="field"><input type="text" id="new-holiday-name" placeholder="Bezeichnung"></div>
+        </div>
+        <button class="btn btn-secondary" id="add-holiday-btn" style="width:100%; margin: 10px 0 18px;">Feiertag hinzufügen</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<nav class="bottom-nav" id="bottom-nav">
+  <button data-tab="stempel" class="active"><span class="icon">⏱</span>Stempel</button>
+  <button data-tab="monat"><span class="icon">📅</span>Monat</button>
+  <button data-tab="antraege"><span class="icon">✉️</span>Anträge</button>
+  <button data-tab="arbeitsplan"><span class="icon">🗓</span>Arbeitsplan</button>
+  <button data-tab="admin" id="admin-nav-btn" style="display:none;"><span class="icon">⚙️</span><span id="admin-nav-label">Admin</span></button>
+</nav>
+
+<!-- Modal: Mitarbeiter anlegen/bearbeiten -->
+<div class="modal-backdrop" id="employee-modal">
+  <div class="modal-sheet">
+    <h3 id="employee-modal-title">Mitarbeiter anlegen</h3>
+    <form id="employee-form">
+      <div class="field">
+        <label for="emp-name">Name</label>
+        <input type="text" id="emp-name" required>
+      </div>
+      <div class="form-row-2">
+        <div class="field">
+          <label for="emp-personalnummer">Personalnummer</label>
+          <input type="text" id="emp-personalnummer" required>
+        </div>
+        <div class="field">
+          <label for="emp-abteilung">Abteilung</label>
+          <select id="emp-abteilung" required>
+            <option value="Bäckerei">Bäckerei</option>
+            <option value="Tearoom&Laden">Tearoom & Laden</option>
+            <option value="Dorfladen">Dorfladen</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="emp-email">E-Mail</label>
+        <input type="email" id="emp-email" required>
+      </div>
+      <div class="field" id="emp-password-field">
+        <label for="emp-password">Temporäres Passwort</label>
+        <input type="text" id="emp-password" minlength="6">
+        <span class="hint-text">Der Mitarbeiter muss es beim ersten Login selbst ändern.</span>
+      </div>
+      <div class="form-row-2">
+        <div class="field">
+          <label for="emp-anstellungsart">Anstellungsart</label>
+          <select id="emp-anstellungsart">
+            <option value="festangestellt">Festangestellt</option>
+            <option value="stundenlohn">Stundenlöhner</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="emp-rolle">Rolle</label>
+          <select id="emp-rolle">
+            <option value="mitarbeiter">Mitarbeiter</option>
+            <option value="leitung">Leitung</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="field">
+          <label for="emp-stellenprozent">Stellenprozent</label>
+          <input type="number" id="emp-stellenprozent" min="1" max="100" value="100">
+        </div>
+        <div class="field">
+          <label for="emp-arbeitstage">Arbeitstage / Woche</label>
+          <input type="number" id="emp-arbeitstage" min="1" max="7" value="5">
+        </div>
+      </div>
+      <div class="field">
+        <label for="emp-anstellungsdatum">Anstellungsdatum</label>
+        <input type="date" id="emp-anstellungsdatum" required>
+      </div>
+
+      <div class="error-text" id="employee-error"></div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="employee-cancel-btn">Abbrechen</button>
+        <button type="submit" class="btn btn-primary" id="employee-save-btn">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
