@@ -19,6 +19,9 @@ export function initStempelTab(session) {
   const shiftList = document.getElementById("today-shift-list");
 
   abteilungEl.textContent = abteilung;
+  if (abteilungen.length > 1) {
+    abteilungEl.innerHTML = `<select id="stempel-abteilung-select">${abteilungen.map((a) => `<option value="${a}">${a}</option>`).join("")}</select>`;
+  }
 
   let currentShifts = [];
 
@@ -50,7 +53,12 @@ export function initStempelTab(session) {
     const status = getStatus(currentShifts);
 
     if (action === "kommen") {
-      currentShifts.push({ start: now, ende: null, pausen: [] });
+      const selectEl = document.getElementById("stempel-abteilung-select");
+      const gewaehlteAbteilung = selectEl ? selectEl.value : (abteilungen[0] || null);
+      currentShifts.push({
+        start: now, ende: null, pausen: [],
+        abteilungSegmente: gewaehlteAbteilung ? [{ abteilung: gewaehlteAbteilung, start: now }] : [],
+      });
     } else if (action === "pause") {
       status.shift.pausen.push({ start: now, ende: null });
     } else if (action === "pause-beenden") {
@@ -71,6 +79,27 @@ export function initStempelTab(session) {
     }
   }
 
+  async function handleAbteilungWechsel(neueAbteilung) {
+    const status = getStatus(currentShifts);
+    if (status.state === "idle") return;
+    const shift = status.shift;
+    if (!shift.abteilungSegmente) {
+      shift.abteilungSegmente = shift.abteilung ? [{ abteilung: shift.abteilung, start: shift.start }] : [];
+    }
+    const letztes = shift.abteilungSegmente[shift.abteilungSegmente.length - 1];
+    if (letztes && letztes.abteilung === neueAbteilung) return; // keine Änderung
+    shift.abteilungSegmente.push({ abteilung: neueAbteilung, start: new Date().toISOString() });
+    delete shift.abteilung; // altes Einzel-Feld nicht mehr nötig
+
+    try {
+      await saveToday();
+      render();
+    } catch (err) {
+      console.error(err);
+      alert("Abteilungswechsel konnte nicht gespeichert werden.");
+    }
+  }
+
   function setActionsDisabled(disabled) {
     actionsEl.querySelectorAll("button").forEach((b) => (b.disabled = disabled));
   }
@@ -81,6 +110,18 @@ export function initStempelTab(session) {
     dotEl.className = "status-dot-badge";
     kommenRow.style.display = "none";
     pauseRow.style.display = "none";
+
+    if (abteilungen.length > 1) {
+      if (status.state === "idle") {
+        abteilungEl.innerHTML = `<select id="stempel-abteilung-select">${abteilungen.map((a) => `<option value="${a}">${a}</option>`).join("")}</select>`;
+      } else {
+        const currentAbt = getCurrentAbteilung(status.shift);
+        abteilungEl.innerHTML = `<select id="stempel-abteilung-select">${abteilungen
+          .map((a) => `<option value="${a}"${a === currentAbt ? " selected" : ""}>${a}</option>`)
+          .join("")}</select>`;
+        document.getElementById("stempel-abteilung-select").addEventListener("change", (e) => handleAbteilungWechsel(e.target.value));
+      }
+    }
 
     if (status.state === "idle") {
       dotEl.classList.add("dot-idle");
@@ -126,12 +167,19 @@ export function initStempelTab(session) {
                 .map((p) => `${formatTime(p.start)}–${p.ende ? formatTime(p.ende) : "läuft"}`)
                 .join(", ")
             : "Keine Pause";
+        const segmentText =
+          abteilungen.length > 1
+            ? getSegments(s)
+                .map((seg) => `[${seg.abteilung}] ${formatTime(seg.start)}–${seg.end ? formatTime(seg.end) : "läuft"}`)
+                .join(" · ")
+            : "";
         return `
         <div class="shift-row">
           <div class="shift-row-main">
             <span class="shift-label">Schicht ${i + 1}</span>
             <span class="shift-range">${range}</span>
           </div>
+          ${segmentText ? `<div class="shift-row-pause">${segmentText}</div>` : ""}
           <div class="shift-row-pause">Pause: ${pausenText}</div>
         </div>`;
       })
@@ -149,6 +197,25 @@ export function initStempelTab(session) {
     tick();
     setInterval(tick, 1000);
   }
+}
+
+// Gibt die Abteilungs-Segmente einer Schicht normalisiert zurück (mit Fallback
+// für alte Schichten, die nur ein einzelnes "abteilung"-Feld statt Segmenten haben).
+function getSegments(shift) {
+  let segs = shift.abteilungSegmente;
+  if (!segs || segs.length === 0) {
+    segs = shift.abteilung ? [{ abteilung: shift.abteilung, start: shift.start }] : [];
+  }
+  return segs.map((seg, i) => ({
+    abteilung: seg.abteilung,
+    start: seg.start,
+    end: segs[i + 1] ? segs[i + 1].start : shift.ende || null,
+  }));
+}
+
+function getCurrentAbteilung(shift) {
+  const segs = getSegments(shift);
+  return segs.length > 0 ? segs[segs.length - 1].abteilung : null;
 }
 
 function getStatus(shifts) {

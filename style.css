@@ -50,6 +50,16 @@ button {
   cursor: pointer;
 }
 
+select {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+}
+
 ::selection { background: var(--color-yellow); color: #121212; }
 
 /* Scrollbar dezent */

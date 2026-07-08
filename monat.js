@@ -110,7 +110,19 @@ export function initMonatTab(session) {
       const isToday = iso === todayISO;
 
       if (dayData && dayData.shifts.length > 0) {
+        const abteilungen = Array.isArray(profile.abteilungen) ? profile.abteilungen : (profile.abteilung ? [profile.abteilung] : []);
+        const mehrereAbteilungen = abteilungen.length > 1;
+
         const shiftTexts = dayData.shifts.map((s) => {
+          if (mehrereAbteilungen) {
+            return getSegments(s)
+              .map((seg) => {
+                const pausenInSeg = (s.pausen || []).filter((p) => p.start >= seg.start && (!seg.end || p.start < seg.end));
+                const pausenText = pausenInSeg.map((p) => ` (P ${formatTime(p.start)}–${p.ende ? formatTime(p.ende) : "läuft"})`).join("");
+                return `[${seg.abteilung}] ${formatTime(seg.start)}${pausenText}–${seg.end ? formatTime(seg.end) : "läuft"}`;
+              })
+              .join(" · ");
+          }
           const start = formatTime(s.start);
           const end = s.ende ? formatTime(s.ende) : "läuft";
           const pausenText =
@@ -119,8 +131,9 @@ export function initMonatTab(session) {
               : "";
           return `${start}${pausenText}–${end}`;
         });
-        const abteilungen = Array.isArray(profile.abteilungen) ? profile.abteilungen : (profile.abteilung ? [profile.abteilung] : []);
-        const subLines = `[${abteilungen.join(", ") || "–"}] ${shiftTexts.join(" · ")}`;
+        const subLines = mehrereAbteilungen
+          ? shiftTexts.join(" · ")
+          : `[${abteilungen.join(", ") || "–"}] ${shiftTexts.join(" · ")}`;
         rows.push(`
           <div class="day-row has-hours${isToday ? " is-today" : ""}">
             <div>
@@ -311,6 +324,18 @@ async function calculateGleitzeitkonto(uid, profile, general, feiertagDates, sta
     cursor = new Date(y, m + 1, 1);
   }
   return totalDiff;
+}
+
+function getSegments(shift) {
+  let segs = shift.abteilungSegmente;
+  if (!segs || segs.length === 0) {
+    segs = shift.abteilung ? [{ abteilung: shift.abteilung, start: shift.start }] : [];
+  }
+  return segs.map((seg, i) => ({
+    abteilung: seg.abteilung,
+    start: seg.start,
+    end: segs[i + 1] ? segs[i + 1].start : shift.ende || null,
+  }));
 }
 
 function toISODate(date) {
