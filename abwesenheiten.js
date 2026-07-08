@@ -150,7 +150,10 @@ export function initAbwesenheitenTab(session) {
               <div class="request-range">${formatDate(r.von)} – ${formatDate(r.bis)}</div>
               <div class="request-name">${escapeHtml(r.name || "")}</div>
             </div>
-            <span class="status-badge ${r.status}">${statusLabel}</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="status-badge ${r.status}">${statusLabel}</span>
+              <button class="small-remove-btn" data-delete="${d.id}" title="Löschen">✕</button>
+            </div>
           </div>
           ${r.bemerkung ? `<div class="request-bemerkung">"${escapeHtml(r.bemerkung)}"</div>` : ""}
           ${r.begruendung ? `<div class="request-begruendung">Begründung: ${escapeHtml(r.begruendung)}</div>` : ""}
@@ -165,6 +168,13 @@ export function initAbwesenheitenTab(session) {
 
     listEl.querySelectorAll("[data-action]").forEach((btn) => {
       btn.addEventListener("click", () => handleDecision(btn.dataset.id, btn.dataset.action));
+    });
+    listEl.querySelectorAll("[data-delete]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Diesen Ferienantrag wirklich löschen?")) return;
+        await deleteDoc(doc(db, "ferienantraege", btn.dataset.delete));
+        loadFerienantraegeAdmin();
+      });
     });
   }
 
