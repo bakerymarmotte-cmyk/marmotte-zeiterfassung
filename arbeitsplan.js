@@ -22,16 +22,20 @@ let editingShiftId = null;
 let employeesCache = null;
 
 export function initArbeitsplanTab(session) {
+  const myAbteilungen = getEmpAbteilungen(session.profile);
+  const sichtbareAbteilungen = ABTEILUNGEN.filter((a) => myAbteilungen.includes(a));
+
   setupWeekTab(session, {
     prevBtnId: "week-prev", nextBtnId: "week-next", labelId: "week-label",
     contentId: "arbeitsplan-content", editable: false,
+    abteilungen: sichtbareAbteilungen.length > 0 ? sichtbareAbteilungen : ABTEILUNGEN,
   });
 }
 
 export function initPlanungTab(session) {
   setupWeekTab(session, {
     prevBtnId: "woche-prev-admin", nextBtnId: "woche-next-admin", labelId: "woche-label-admin",
-    contentId: "planung-content", editable: true,
+    contentId: "planung-content", editable: true, abteilungen: ABTEILUNGEN,
   });
   setupShiftModal(session);
 }
@@ -63,7 +67,7 @@ function setupWeekTab(session, cfg) {
     ]);
 
     contentEl.innerHTML = "";
-    for (const abteilung of ABTEILUNGEN) {
+    for (const abteilung of cfg.abteilungen) {
       contentEl.appendChild(renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, abwesenheiten, cfg.editable));
     }
 
