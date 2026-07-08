@@ -38,9 +38,17 @@ export function initStempelTab(session) {
   });
 
   async function loadToday() {
-    const snap = await getDoc(doc(db, "timeentries", entryId(uid)));
-    currentShifts = snap.exists() && Array.isArray(snap.data().shifts) ? snap.data().shifts : [];
-    render();
+    try {
+      const snap = await getDoc(doc(db, "timeentries", entryId(uid)));
+      currentShifts = snap.exists() && Array.isArray(snap.data().shifts) ? snap.data().shifts : [];
+      render();
+    } catch (err) {
+      console.error("Fehler beim Laden der Stempeldaten:", err);
+      statusText.textContent = "Fehler beim Laden. Bitte Seite neu laden.";
+      bigBtn.textContent = "Neu laden";
+      bigBtn.disabled = false;
+      bigBtn.onclick = () => window.location.reload();
+    }
   }
 
   async function saveToday() {
