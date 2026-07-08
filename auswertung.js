@@ -330,7 +330,7 @@ function expandRange(von, bis) {
 const abwLabelsShort = { krank: "Krank", unfall: "Unfall", militaer: "Militär", schwangerschaft: "Schwang.", bezahlter_frei_tag: "Frei Tag" };
 const abwIconsShort = { krank: "🤒", unfall: "🚑", militaer: "🎖️", schwangerschaft: "🤰", bezahlter_frei_tag: "🎉" };
 
-function renderEmployeeCard(emp, report, von, bis, showPdfButton = true) {
+function renderEmployeeCard(emp, report, von, bis, showPdfButton = true, showDetailButton = true) {
   const card = document.createElement("div");
   card.className = "uebersicht-card";
 
@@ -353,14 +353,15 @@ function renderEmployeeCard(emp, report, von, bis, showPdfButton = true) {
     <div class="uebersicht-top">
       <div class="uebersicht-name-row">[${escapeHtml(emp.personalnummer || "–")}] ${escapeHtml(emp.name || "")} ${slPill} ${pills}</div>
       <div class="uebersicht-actions">
-        <button class="btn btn-secondary" data-detail>Detail</button>
+        ${showDetailButton ? '<button class="btn btn-secondary" data-detail>Detail</button>' : ""}
         ${showPdfButton ? '<button class="btn btn-primary" data-pdf>📄 PDF</button>' : ""}
       </div>
     </div>
     <div class="uebersicht-stats">${statsHtml}</div>
   `;
 
-  card.querySelector("[data-detail]").addEventListener("click", () => openDetailModal(emp, von, bis));
+  const detailBtn = card.querySelector("[data-detail]");
+  if (detailBtn) detailBtn.addEventListener("click", () => openDetailModal(emp, von, bis));
   const pdfBtn = card.querySelector("[data-pdf]");
   if (pdfBtn) pdfBtn.addEventListener("click", () => generatePdf(emp, report, von, bis));
 
@@ -805,7 +806,7 @@ function setupJahresuebersicht(session) {
     resultsEl.innerHTML = "";
     for (const emp of employees) {
       const report = await computeEmployeeReport(emp, von, bis, allFerien, allAbw);
-      resultsEl.appendChild(renderEmployeeCard(emp, report, von, bis, false));
+      resultsEl.appendChild(renderEmployeeCard(emp, report, von, bis, false, false));
     }
     if (employees.length === 0) {
       resultsEl.innerHTML = '<div class="hint-text">Keine Mitarbeiter gefunden.</div>';
