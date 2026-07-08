@@ -2,7 +2,7 @@ import { db } from "./firebase-config.js";
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signOut as signOutSecondary } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  collection, doc, getDocs, setDoc, updateDoc, query, orderBy
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, query, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // Muss identisch zur Config in firebase-config.js sein (wird für den "Zweit-App"-Trick benötigt,
@@ -20,22 +20,42 @@ const firebaseConfigDuplicate = {
 const roleLabels = { admin: "Admin", leitung: "Leitung", mitarbeiter: "Mitarbeiter" };
 
 let editingUid = null; // null = Neuanlage, sonst UID des bearbeiteten Mitarbeiters
+let generalSettings = { wochenstunden100: 42, ferientageProJahr: 25 };
 
 export function initTeamTab(session) {
   const listEl = document.getElementById("employee-list");
-  const fab = document.getElementById("add-employee-fab");
-  const modal = document.getElementById("employee-modal");
+  const subnavBtns = document.querySelectorAll("#team-subnav button");
+  const listView = document.getElementById("team-list-view");
+  const formView = document.getElementById("team-form-view");
   const form = document.getElementById("employee-form");
-  const cancelBtn = document.getElementById("employee-cancel-btn");
   const errorEl = document.getElementById("employee-error");
-  const modalTitle = document.getElementById("employee-modal-title");
+  const formTitle = document.getElementById("team-form-title");
   const emailField = document.getElementById("emp-email");
   const passwordField = document.getElementById("emp-password-field");
+  const stellenprozentEl = document.getElementById("emp-stellenprozent");
+  const anstellungsartRadios = document.querySelectorAll('input[name="emp-anstellungsart"]');
+  const wochenstundenField = document.getElementById("emp-wochenstunden-field");
 
+  loadGeneralSettings();
   loadEmployees();
 
-  fab.addEventListener("click", () => openModal(null));
-  cancelBtn.addEventListener("click", closeModal);
+  subnavBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      subnavBtns.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      if (btn.dataset.teamview === "list") {
+        listView.style.display = "block";
+        formView.style.display = "none";
+      } else {
+        showForm(null);
+        listView.style.display = "none";
+        formView.style.display = "block";
+      }
+    });
+  });
+
+  stellenprozentEl.addEventListener("input", updateAutoFields);
+  anstellungsartRadios.forEach((r) => r.addEventListener("change", updateAutoFields));
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -44,17 +64,27 @@ export function initTeamTab(session) {
     saveBtn.disabled = true;
     saveBtn.textContent = "Speichert …";
 
+    const abteilungen = Array.from(document.querySelectorAll(".emp-abteilung-cb:checked")).map((cb) => cb.value);
+    const anstellungsart = document.querySelector('input[name="emp-anstellungsart"]:checked').value;
+
     const data = {
       name: document.getElementById("emp-name").value.trim(),
       personalnummer: document.getElementById("emp-personalnummer").value.trim(),
-      abteilung: document.getElementById("emp-abteilung").value,
+      abteilungen,
       email: emailField.value.trim(),
-      anstellungsart: document.getElementById("emp-anstellungsart").value,
+      anstellungsart,
       role: document.getElementById("emp-rolle").value,
-      stellenprozent: Number(document.getElementById("emp-stellenprozent").value),
+      stellenprozent: Number(stellenprozentEl.value),
       arbeitstageProWoche: Number(document.getElementById("emp-arbeitstage").value),
       anstellungsdatum: document.getElementById("emp-anstellungsdatum").value,
     };
+
+    if (abteilungen.length === 0) {
+      errorEl.textContent = "Bitte mindestens eine Abteilung auswählen.";
+      saveBtn.disabled = false;
+      saveBtn.textContent = editingUid ? "Speichern" : "Mitarbeitenden erstellen";
+      return;
+    }
 
     try {
       if (editingUid) {
@@ -66,16 +96,42 @@ export function initTeamTab(session) {
         }
         await createEmployeeAccount(data, password);
       }
-      closeModal();
+      listView.style.display = "block";
+      formView.style.display = "none";
+      subnavBtns.forEach((b) => b.classList.remove("active"));
+      subnavBtns[0].classList.add("active");
       loadEmployees();
     } catch (err) {
       console.error(err);
       errorEl.textContent = mapError(err);
     } finally {
       saveBtn.disabled = false;
-      saveBtn.textContent = "Speichern";
+      saveBtn.textContent = editingUid ? "Speichern" : "Mitarbeitenden erstellen";
     }
   });
+
+  async function loadGeneralSettings() {
+    const snap = await getDoc(doc(db, "settings", "general"));
+    if (snap.exists()) generalSettings = snap.data();
+    updateAutoFields();
+  }
+
+  function updateAutoFields() {
+    const stellenprozent = Number(stellenprozentEl.value) || 0;
+    const anstellungsart = document.querySelector('input[name="emp-anstellungsart"]:checked')?.value;
+    const ferienEl = document.getElementById("emp-ferientage-auto");
+    const wochenstundenEl = document.getElementById("emp-wochenstunden-auto");
+
+    ferienEl.value = ((generalSettings.ferientageProJahr || 25) * (stellenprozent / 100)).toFixed(1);
+
+    if (anstellungsart === "stundenlohn") {
+      wochenstundenEl.value = "—";
+      wochenstundenField.style.opacity = "0.5";
+    } else {
+      wochenstundenEl.value = ((generalSettings.wochenstunden100 || 42) * (stellenprozent / 100)).toFixed(1);
+      wochenstundenField.style.opacity = "1";
+    }
+  }
 
   async function loadEmployees() {
     listEl.innerHTML = '<div class="hint-text">Lädt…</div>';
@@ -88,51 +144,66 @@ export function initTeamTab(session) {
     }
     snap.forEach((docSnap) => {
       const u = docSnap.data();
+      const abteilungen = getAbteilungen(u);
       const item = document.createElement("div");
       item.className = "employee-item";
       item.innerHTML = `
         <div class="info">
           <div class="name">${escapeHtml(u.name || "(ohne Name)")}</div>
-          <div class="meta">${escapeHtml(u.abteilung || "–")} · ${escapeHtml(u.personalnummer || "–")}</div>
+          <div class="meta">${escapeHtml(abteilungen.join(", ") || "–")} · ${escapeHtml(u.personalnummer || "–")}</div>
         </div>
         <span class="badge role-${u.role || "mitarbeiter"}">${roleLabels[u.role] || u.role || ""}</span>
       `;
-      item.addEventListener("click", () => openModal(docSnap.id, u));
+      item.addEventListener("click", () => {
+        showForm(docSnap.id, u);
+        listView.style.display = "none";
+        formView.style.display = "block";
+        subnavBtns.forEach((b) => b.classList.remove("active"));
+        subnavBtns[1].classList.add("active");
+      });
       listEl.appendChild(item);
     });
   }
 
-  function openModal(uid, data) {
+  function showForm(uid, data) {
     editingUid = uid;
     errorEl.textContent = "";
     form.reset();
+    document.querySelectorAll(".emp-abteilung-cb").forEach((cb) => (cb.checked = false));
 
-    if (uid) {
-      modalTitle.textContent = "Mitarbeiter bearbeiten";
+    if (uid && data) {
+      formTitle.textContent = "Mitarbeiter bearbeiten";
       document.getElementById("emp-name").value = data.name || "";
       document.getElementById("emp-personalnummer").value = data.personalnummer || "";
-      document.getElementById("emp-abteilung").value = data.abteilung || "Bäckerei";
       emailField.value = data.email || "";
       emailField.disabled = true;
       passwordField.style.display = "none";
-      document.getElementById("emp-anstellungsart").value = data.anstellungsart || "festangestellt";
+      document.querySelector(`input[name="emp-anstellungsart"][value="${data.anstellungsart || "festangestellt"}"]`).checked = true;
       document.getElementById("emp-rolle").value = data.role || "mitarbeiter";
-      document.getElementById("emp-stellenprozent").value = data.stellenprozent || 100;
+      stellenprozentEl.value = data.stellenprozent || 100;
       document.getElementById("emp-arbeitstage").value = data.arbeitstageProWoche || 5;
       document.getElementById("emp-anstellungsdatum").value = data.anstellungsdatum || "";
+      getAbteilungen(data).forEach((a) => {
+        const cb = document.querySelector(`.emp-abteilung-cb[value="${a}"]`);
+        if (cb) cb.checked = true;
+      });
+      document.getElementById("employee-save-btn").textContent = "Speichern";
     } else {
-      modalTitle.textContent = "Mitarbeiter anlegen";
+      formTitle.textContent = "Neuen Mitarbeitenden hinzufügen";
       emailField.disabled = false;
       passwordField.style.display = "flex";
+      document.getElementById("employee-save-btn").textContent = "Mitarbeitenden erstellen";
     }
-
-    modal.classList.add("active");
+    updateAutoFields();
   }
+}
 
-  function closeModal() {
-    modal.classList.remove("active");
-    editingUid = null;
-  }
+// Fällt auf das alte Einzel-Feld "abteilung" zurück, falls ein Mitarbeiter
+// noch vor der Umstellung auf Mehrfachauswahl angelegt wurde.
+function getAbteilungen(profile) {
+  if (Array.isArray(profile.abteilungen)) return profile.abteilungen;
+  if (profile.abteilung) return [profile.abteilung];
+  return [];
 }
 
 async function createEmployeeAccount(data, password) {

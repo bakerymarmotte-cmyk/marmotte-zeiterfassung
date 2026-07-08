@@ -105,7 +105,7 @@ function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, a
     // Absenzen der Mitarbeiter dieser Abteilung an diesem Tag
     const absencesToday = [];
     for (const emp of employees) {
-      if (emp.abteilung !== abteilung) continue;
+      if (!getEmpAbteilungen(emp).includes(abteilung)) continue;
       const f = ferien.find((r) => r.uid === emp.uid && iso >= r.von && iso <= r.bis);
       if (f) absencesToday.push({ name: emp.name, type: "ferien", label: "Ferien genehmigt" });
       const a = abwesenheiten.find((r) => r.uid === emp.uid && iso >= r.von && iso <= r.bis);
@@ -338,6 +338,12 @@ function getISOWeekNumber(date) {
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+}
+
+function getEmpAbteilungen(profile) {
+  if (Array.isArray(profile.abteilungen)) return profile.abteilungen;
+  if (profile.abteilung) return [profile.abteilung];
+  return [];
 }
 
 function escapeHtml(str) {

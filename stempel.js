@@ -3,7 +3,10 @@ import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/
 
 export function initStempelTab(session) {
   const uid = session.uid;
-  const abteilung = session.profile.abteilung || "–";
+  const abteilungen = Array.isArray(session.profile.abteilungen)
+    ? session.profile.abteilungen
+    : (session.profile.abteilung ? [session.profile.abteilung] : []);
+  const abteilung = abteilungen.join(", ") || "–";
 
   const dotEl = document.getElementById("status-dot");
   const labelEl = document.getElementById("status-label");

@@ -308,6 +308,22 @@
   }
   .add-shift-btn:hover { border-color: var(--color-yellow); color: var(--color-yellow); }
   .no-shifts-text { margin-bottom: 10px; }
+
+  /* Radio-/Checkbox-Pills im Mitarbeiter-Formular */
+  .radio-row, .checkbox-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .radio-pill, .checkbox-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--color-surface-raised); border: 1px solid var(--color-border);
+    border-radius: 999px; padding: 8px 14px; font-size: 13.5px; cursor: pointer;
+  }
+  .radio-pill:has(input:checked), .checkbox-pill:has(input:checked) {
+    border-color: var(--color-yellow); color: var(--color-yellow);
+  }
+  .radio-pill input, .checkbox-pill input { accent-color: var(--color-yellow); }
+
+  .field input:disabled {
+    opacity: 0.6; cursor: not-allowed;
+  }
 </style>
 </head>
 <body>
@@ -453,8 +469,93 @@
     </div>
 
     <div class="subpanel active" id="sub-team">
-      <div id="employee-list" class="employee-list"></div>
-      <button class="fab" id="add-employee-fab" title="Mitarbeiter hinzufügen">+</button>
+      <div class="subtabs" id="team-subnav">
+        <button data-teamview="list" class="active">👥 Mitarbeitende</button>
+        <button data-teamview="form">+ Neu</button>
+      </div>
+
+      <div id="team-list-view">
+        <div id="employee-list" class="employee-list"></div>
+      </div>
+
+      <div id="team-form-view" style="display:none;">
+        <h3 class="section-title" id="team-form-title">Neuen Mitarbeitenden hinzufügen</h3>
+        <form id="employee-form">
+          <div class="field">
+            <label for="emp-name">Name</label>
+            <input type="text" id="emp-name" required>
+          </div>
+          <div class="field">
+            <label for="emp-personalnummer">Personalnummer</label>
+            <input type="text" id="emp-personalnummer" required>
+          </div>
+          <div class="field">
+            <label for="emp-email">E-Mail</label>
+            <input type="email" id="emp-email" required>
+          </div>
+          <div class="field" id="emp-password-field">
+            <label for="emp-password">Passwort (temporär)</label>
+            <input type="text" id="emp-password" minlength="6">
+            <span class="hint-text">Der Mitarbeiter muss es beim ersten Login selbst ändern.</span>
+          </div>
+
+          <div class="field">
+            <label>Anstellungsart</label>
+            <div class="radio-row">
+              <label class="radio-pill"><input type="radio" name="emp-anstellungsart" value="festangestellt" checked> Festangestellt</label>
+              <label class="radio-pill"><input type="radio" name="emp-anstellungsart" value="stundenlohn"> Stundenlöhner</label>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="field">
+              <label for="emp-stellenprozent">Stellenprozent (%)</label>
+              <input type="number" id="emp-stellenprozent" min="1" max="100" value="100">
+            </div>
+            <div class="field">
+              <label for="emp-arbeitstage">Arbeitstage / Woche</label>
+              <input type="number" id="emp-arbeitstage" min="1" max="7" value="5">
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="field" id="emp-wochenstunden-field">
+              <label for="emp-wochenstunden-auto">Wochenstunden (auto)</label>
+              <input type="text" id="emp-wochenstunden-auto" disabled value="—">
+            </div>
+            <div class="field">
+              <label for="emp-ferientage-auto">Ferientage / Jahr (auto)</label>
+              <input type="text" id="emp-ferientage-auto" disabled value="—">
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="emp-anstellungsdatum">Anstellungsdatum</label>
+            <input type="date" id="emp-anstellungsdatum" required>
+          </div>
+
+          <div class="field">
+            <label>Abteilungen</label>
+            <div class="checkbox-row">
+              <label class="checkbox-pill"><input type="checkbox" value="Bäckerei" class="emp-abteilung-cb"> Bäckerei</label>
+              <label class="checkbox-pill"><input type="checkbox" value="Tearoom&Laden" class="emp-abteilung-cb"> Tearoom & Laden</label>
+              <label class="checkbox-pill"><input type="checkbox" value="Dorfladen" class="emp-abteilung-cb"> Dorfladen</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="emp-rolle">Rolle</label>
+            <select id="emp-rolle">
+              <option value="mitarbeiter">Mitarbeiter</option>
+              <option value="leitung">Leitung</option>
+            </select>
+          </div>
+
+          <div class="error-text" id="employee-error"></div>
+
+          <button type="submit" class="btn btn-primary" id="employee-save-btn" style="width:100%;">Mitarbeitenden erstellen</button>
+        </form>
+      </div>
     </div>
 
     <div class="subpanel" id="sub-auswertung">
@@ -529,78 +630,6 @@
 </main>
 
 <!-- Modal: Mitarbeiter anlegen/bearbeiten -->
-<div class="modal-backdrop" id="employee-modal">
-  <div class="modal-sheet">
-    <h3 id="employee-modal-title">Mitarbeiter anlegen</h3>
-    <form id="employee-form">
-      <div class="field">
-        <label for="emp-name">Name</label>
-        <input type="text" id="emp-name" required>
-      </div>
-      <div class="form-row-2">
-        <div class="field">
-          <label for="emp-personalnummer">Personalnummer</label>
-          <input type="text" id="emp-personalnummer" required>
-        </div>
-        <div class="field">
-          <label for="emp-abteilung">Abteilung</label>
-          <select id="emp-abteilung" required>
-            <option value="Bäckerei">Bäckerei</option>
-            <option value="Tearoom&Laden">Tearoom & Laden</option>
-            <option value="Dorfladen">Dorfladen</option>
-          </select>
-        </div>
-      </div>
-      <div class="field">
-        <label for="emp-email">E-Mail</label>
-        <input type="email" id="emp-email" required>
-      </div>
-      <div class="field" id="emp-password-field">
-        <label for="emp-password">Temporäres Passwort</label>
-        <input type="text" id="emp-password" minlength="6">
-        <span class="hint-text">Der Mitarbeiter muss es beim ersten Login selbst ändern.</span>
-      </div>
-      <div class="form-row-2">
-        <div class="field">
-          <label for="emp-anstellungsart">Anstellungsart</label>
-          <select id="emp-anstellungsart">
-            <option value="festangestellt">Festangestellt</option>
-            <option value="stundenlohn">Stundenlöhner</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="emp-rolle">Rolle</label>
-          <select id="emp-rolle">
-            <option value="mitarbeiter">Mitarbeiter</option>
-            <option value="leitung">Leitung</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row-2">
-        <div class="field">
-          <label for="emp-stellenprozent">Stellenprozent</label>
-          <input type="number" id="emp-stellenprozent" min="1" max="100" value="100">
-        </div>
-        <div class="field">
-          <label for="emp-arbeitstage">Arbeitstage / Woche</label>
-          <input type="number" id="emp-arbeitstage" min="1" max="7" value="5">
-        </div>
-      </div>
-      <div class="field">
-        <label for="emp-anstellungsdatum">Anstellungsdatum</label>
-        <input type="date" id="emp-anstellungsdatum" required>
-      </div>
-
-      <div class="error-text" id="employee-error"></div>
-
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" id="employee-cancel-btn">Abbrechen</button>
-        <button type="submit" class="btn btn-primary" id="employee-save-btn">Speichern</button>
-      </div>
-    </form>
-  </div>
-</div>
-
 <!-- Modal: Schicht eintragen/bearbeiten -->
 <div class="modal-backdrop" id="shift-modal">
   <div class="modal-sheet">

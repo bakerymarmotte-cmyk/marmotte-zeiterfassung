@@ -119,7 +119,8 @@ export function initMonatTab(session) {
               : "";
           return `${start}${pausenText}–${end}`;
         });
-        const subLines = `[${profile.abteilung || "–"}] ${shiftTexts.join(" · ")}`;
+        const abteilungen = Array.isArray(profile.abteilungen) ? profile.abteilungen : (profile.abteilung ? [profile.abteilung] : []);
+        const subLines = `[${abteilungen.join(", ") || "–"}] ${shiftTexts.join(" · ")}`;
         rows.push(`
           <div class="day-row has-hours${isToday ? " is-today" : ""}">
             <div>
