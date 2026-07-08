@@ -34,15 +34,11 @@ function setupSubtabs() {
 
 function setupLiveStatus() {
   let currentFilter = "alle";
-  const filterBtns = document.querySelectorAll("#live-abteilung-filter button");
+  const selectEl = document.getElementById("live-abteilung-select");
 
-  filterBtns.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      filterBtns.forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      currentFilter = btn.dataset.abtfilter;
-      render();
-    });
+  selectEl.addEventListener("change", () => {
+    currentFilter = selectEl.value;
+    render();
   });
 
   render();

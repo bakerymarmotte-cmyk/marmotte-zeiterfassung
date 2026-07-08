@@ -580,11 +580,14 @@
       </div>
 
       <div class="abw-subpanel active" id="ausw-sub-live">
-        <div class="subtabs" id="live-abteilung-filter">
-          <button data-abtfilter="alle" class="active">Alle</button>
-          <button data-abtfilter="Bäckerei">Bäckerei</button>
-          <button data-abtfilter="Tearoom&Laden">Tearoom & Laden</button>
-          <button data-abtfilter="Dorfladen">Dorfladen</button>
+        <div class="field" style="max-width:260px;">
+          <label for="live-abteilung-select">Abteilung</label>
+          <select id="live-abteilung-select">
+            <option value="alle">Alle</option>
+            <option value="Bäckerei">Bäckerei</option>
+            <option value="Tearoom&Laden">Tearoom & Laden</option>
+            <option value="Dorfladen">Dorfladen</option>
+          </select>
         </div>
         <div id="live-status-list"></div>
       </div>
