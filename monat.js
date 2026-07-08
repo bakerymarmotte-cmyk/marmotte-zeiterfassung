@@ -58,9 +58,6 @@ export function initMonatTab(session) {
     const feiertagDates = new Set(feiertage.map((f) => f.date));
 
     const absenceDates = await loadAbsenceDates(uid);
-    console.log("[DEBUG] uid:", uid);
-    console.log("[DEBUG] absenceDates size:", absenceDates.size, "ferienDates size:", absenceDates.ferienDates.size);
-    console.log("[DEBUG] absenceDates entries:", [...absenceDates.entries()]);
 
     // Monatswerte
     const sollMinuten = calculateSollMinutes(viewYear, viewMonth, profile, general, feiertagDates, null, absenceDates);
