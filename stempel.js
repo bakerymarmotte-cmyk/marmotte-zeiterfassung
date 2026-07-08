@@ -3,39 +3,24 @@ import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/
 
 export function initStempelTab(session) {
   const uid = session.uid;
-  const bigBtn = document.getElementById("stempel-btn");
-  const statusText = document.getElementById("stempel-status");
+  const abteilung = session.profile.abteilung || "–";
+
+  const dotEl = document.getElementById("status-dot");
+  const labelEl = document.getElementById("status-label");
+  const abteilungEl = document.getElementById("status-abteilung");
+  const kommenRow = document.getElementById("status-kommen-row");
+  const kommenEl = document.getElementById("status-kommen");
+  const pauseRow = document.getElementById("status-pause-row");
+  const pauseSinceEl = document.getElementById("status-pause-since");
+  const actionsEl = document.getElementById("stempel-actions");
   const shiftList = document.getElementById("today-shift-list");
+
+  abteilungEl.textContent = abteilung;
 
   let currentShifts = [];
 
+  startClock();
   loadToday();
-
-  bigBtn.addEventListener("click", async () => {
-    bigBtn.disabled = true;
-    try {
-      const status = getStatus(currentShifts);
-      const now = new Date().toISOString();
-
-      if (status.state === "idle") {
-        currentShifts.push({ start: now, ende: null, pause: null });
-      } else if (status.state === "working") {
-        status.shift.pause = { start: now, ende: null };
-      } else if (status.state === "onbreak") {
-        status.shift.pause.ende = now;
-      } else if (status.state === "afterbreak") {
-        status.shift.ende = now;
-      }
-
-      await saveToday();
-      render();
-    } catch (err) {
-      console.error(err);
-      alert("Speichern fehlgeschlagen. Bitte erneut versuchen.");
-    } finally {
-      bigBtn.disabled = false;
-    }
-  });
 
   async function loadToday() {
     try {
@@ -44,10 +29,8 @@ export function initStempelTab(session) {
       render();
     } catch (err) {
       console.error("Fehler beim Laden der Stempeldaten:", err);
-      statusText.textContent = "Fehler beim Laden. Bitte Seite neu laden.";
-      bigBtn.textContent = "Neu laden";
-      bigBtn.disabled = false;
-      bigBtn.onclick = () => window.location.reload();
+      labelEl.textContent = "Fehler beim Laden – bitte Seite neu laden";
+      actionsEl.innerHTML = "";
     }
   }
 
@@ -59,32 +42,69 @@ export function initStempelTab(session) {
     });
   }
 
-  function render() {
+  async function handleAction(action) {
+    const now = new Date().toISOString();
     const status = getStatus(currentShifts);
-    let btnLabel, infoLabel, btnClass;
 
-    if (status.state === "idle") {
-      btnLabel = "Einstempeln";
-      infoLabel = "Nicht eingestempelt";
-      btnClass = "btn-primary";
-    } else if (status.state === "working") {
-      btnLabel = "Pause starten";
-      infoLabel = `Eingestempelt seit ${formatTime(status.shift.start)}`;
-      btnClass = "btn-yellow-outline";
-    } else if (status.state === "onbreak") {
-      btnLabel = "Pause beenden";
-      infoLabel = `Pause seit ${formatTime(status.shift.pause.start)}`;
-      btnClass = "btn-primary";
-    } else {
-      btnLabel = "Ausstempeln";
-      infoLabel = `Pause beendet um ${formatTime(status.shift.pause.ende)}`;
-      btnClass = "btn-danger-solid";
+    if (action === "kommen") {
+      currentShifts.push({ start: now, ende: null, pausen: [] });
+    } else if (action === "pause") {
+      status.shift.pausen.push({ start: now, ende: null });
+    } else if (action === "pause-beenden") {
+      status.shift.pausen[status.shift.pausen.length - 1].ende = now;
+    } else if (action === "gehen") {
+      status.shift.ende = now;
     }
 
-    bigBtn.disabled = false;
-    bigBtn.textContent = btnLabel;
-    statusText.textContent = infoLabel;
-    bigBtn.className = "btn stempel-main-btn " + btnClass;
+    setActionsDisabled(true);
+    try {
+      await saveToday();
+      render();
+    } catch (err) {
+      console.error(err);
+      alert("Speichern fehlgeschlagen. Bitte erneut versuchen.");
+    } finally {
+      setActionsDisabled(false);
+    }
+  }
+
+  function setActionsDisabled(disabled) {
+    actionsEl.querySelectorAll("button").forEach((b) => (b.disabled = disabled));
+  }
+
+  function render() {
+    const status = getStatus(currentShifts);
+
+    dotEl.className = "status-dot-badge";
+    kommenRow.style.display = "none";
+    pauseRow.style.display = "none";
+
+    if (status.state === "idle") {
+      dotEl.classList.add("dot-idle");
+      labelEl.textContent = "Nicht eingestempelt";
+      actionsEl.innerHTML = `<button class="btn btn-primary" data-action="kommen">Kommen</button>`;
+    } else if (status.state === "working") {
+      dotEl.classList.add("dot-working");
+      labelEl.textContent = "Eingestempelt";
+      kommenRow.style.display = "flex";
+      kommenEl.textContent = formatTime(status.shift.start);
+      actionsEl.innerHTML = `
+        <button class="btn btn-yellow-outline" data-action="pause">⏸ Pause</button>
+        <button class="btn btn-danger-solid" data-action="gehen">✕ Gehen</button>
+      `;
+    } else if (status.state === "onbreak") {
+      dotEl.classList.add("dot-break");
+      labelEl.textContent = "Pause";
+      kommenRow.style.display = "flex";
+      kommenEl.textContent = formatTime(status.shift.start);
+      pauseRow.style.display = "flex";
+      pauseSinceEl.textContent = formatTime(status.shift.pausen[status.shift.pausen.length - 1].start);
+      actionsEl.innerHTML = `<button class="btn btn-primary" data-action="pause-beenden">▶ Pause beenden</button>`;
+    }
+
+    actionsEl.querySelectorAll("button").forEach((btn) => {
+      btn.addEventListener("click", () => handleAction(btn.dataset.action));
+    });
 
     renderShiftList();
   }
@@ -97,19 +117,34 @@ export function initStempelTab(session) {
     shiftList.innerHTML = currentShifts
       .map((s, i) => {
         const range = `${formatTime(s.start)} – ${s.ende ? formatTime(s.ende) : "läuft"}`;
-        const pause = s.pause
-          ? `Pause: ${formatTime(s.pause.start)} – ${s.pause.ende ? formatTime(s.pause.ende) : "läuft"}`
-          : "Keine Pause";
+        const pausenText =
+          s.pausen && s.pausen.length > 0
+            ? s.pausen
+                .map((p) => `${formatTime(p.start)}–${p.ende ? formatTime(p.ende) : "läuft"}`)
+                .join(", ")
+            : "Keine Pause";
         return `
         <div class="shift-row">
           <div class="shift-row-main">
             <span class="shift-label">Schicht ${i + 1}</span>
             <span class="shift-range">${range}</span>
           </div>
-          <div class="shift-row-pause">${pause}</div>
+          <div class="shift-row-pause">Pause: ${pausenText}</div>
         </div>`;
       })
       .join("");
+  }
+
+  function startClock() {
+    const timeEl = document.getElementById("live-clock");
+    const dateEl = document.getElementById("live-date");
+    function tick() {
+      const now = new Date();
+      timeEl.textContent = now.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      dateEl.textContent = now.toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    }
+    tick();
+    setInterval(tick, 1000);
   }
 }
 
@@ -117,9 +152,9 @@ function getStatus(shifts) {
   if (shifts.length === 0) return { state: "idle" };
   const last = shifts[shifts.length - 1];
   if (last.ende) return { state: "idle" };
-  if (!last.pause) return { state: "working", shift: last };
-  if (!last.pause.ende) return { state: "onbreak", shift: last };
-  return { state: "afterbreak", shift: last };
+  const lastPause = last.pausen && last.pausen.length > 0 ? last.pausen[last.pausen.length - 1] : null;
+  if (lastPause && !lastPause.ende) return { state: "onbreak", shift: last };
+  return { state: "working", shift: last };
 }
 
 function entryId(uid) {

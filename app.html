@@ -147,23 +147,38 @@
   .inline-add-row input { flex: 1; }
   .inline-add-row .field { margin-bottom: 0; }
 
-  /* Stempeluhr */
-  .stempel-card {
-    padding: 32px 24px;
-    text-align: center;
-    margin-top: 10px;
+  /* Live-Uhr */
+  .clock-block { text-align: center; padding: 28px 0 8px; }
+  .clock-time {
+    font-family: var(--font-mono);
+    font-size: 42px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--color-text);
   }
-  .stempel-status {
-    font-size: 15px;
-    color: var(--color-text-muted);
-    margin-bottom: 20px;
+  .clock-date { color: var(--color-text-muted); font-size: 14px; margin-top: 4px; }
+
+  /* Status-Karte */
+  .status-card { padding: 20px 20px 22px; margin-top: 14px; }
+  .status-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; font-weight: 700; font-size: 15px; }
+  .status-dot-badge {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--color-text-muted); flex-shrink: 0;
   }
-  .stempel-main-btn {
-    width: 100%;
-    padding: 22px;
-    font-size: 18px;
-    border-radius: var(--radius-md);
+  .status-dot-badge.dot-idle { background: var(--color-text-muted); }
+  .status-dot-badge.dot-working { background: var(--color-success); }
+  .status-dot-badge.dot-break { background: var(--color-yellow); }
+
+  .status-field {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 0; border-top: 1px solid var(--color-border);
+    font-size: 14px;
   }
+  .status-field-label { color: var(--color-text-muted); }
+  .status-field-value { font-weight: 600; }
+
+  .stempel-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .stempel-actions .btn { flex: 1; padding: 15px; font-size: 15px; }
   .btn-yellow-outline {
     background: transparent;
     color: var(--color-yellow);
@@ -205,11 +220,30 @@
 
   <!-- STEMPEL -->
   <section class="tab-panel active" id="panel-stempel">
-    <h2 class="section-title">Stempeluhr</h2>
+    <div class="clock-block">
+      <div class="clock-time" id="live-clock">--:--:--</div>
+      <div class="clock-date" id="live-date"></div>
+    </div>
 
-    <div class="card stempel-card">
-      <div class="stempel-status" id="stempel-status">Lädt …</div>
-      <button class="btn stempel-main-btn btn-primary" id="stempel-btn" disabled>…</button>
+    <div class="card status-card">
+      <div class="status-row">
+        <span class="status-dot-badge" id="status-dot"></span>
+        <span id="status-label">Lädt …</span>
+      </div>
+      <div class="status-field">
+        <span class="status-field-label">Abteilung</span>
+        <span class="status-field-value" id="status-abteilung">–</span>
+      </div>
+      <div class="status-field" id="status-kommen-row" style="display:none;">
+        <span class="status-field-label">Kommen</span>
+        <span class="status-field-value" id="status-kommen">–</span>
+      </div>
+      <div class="status-field" id="status-pause-row" style="display:none;">
+        <span class="status-field-label">Pause seit</span>
+        <span class="status-field-value" id="status-pause-since">–</span>
+      </div>
+
+      <div class="stempel-actions" id="stempel-actions"></div>
     </div>
 
     <h3 class="shift-list-title">Heutige Schichten</h3>
