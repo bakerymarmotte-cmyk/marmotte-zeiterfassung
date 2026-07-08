@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Marmotte Zeiterfassung – Login</title>
 <link rel="icon" href="assets/icon_zeiterfassung_favicon32.png" type="image/png">
-<link rel="apple-touch-icon" href="assets/icon_zeiterfassung_192.png">
+<link rel="apple-touch-icon" href="assets/icon_zeiterfassung_apple-touch-180.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1A1A1A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Marmotte">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -147,6 +152,15 @@
     // Bewusst kein Auto-Redirect hier, damit man sich auf dieser Testseite
     // auch bewusst neu einloggen kann.
   });
+
+  // Service Worker registrieren, damit die App auf dem Smartphone installierbar wird
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./service-worker.js").catch((err) => {
+        console.warn("Service Worker konnte nicht registriert werden:", err);
+      });
+    });
+  }
 </script>
 
 </body>
