@@ -94,9 +94,16 @@ export function initMonatTab(session) {
       const isToday = iso === todayISO;
 
       if (dayData && dayData.shifts.length > 0) {
-        const subLines = dayData.shifts
-          .map((s) => `[${profile.abteilung || "–"}] ${formatTime(s.start)}–${s.ende ? formatTime(s.ende) : "läuft"}`)
-          .join(" · ");
+        const shiftTexts = dayData.shifts.map((s) => {
+          const start = formatTime(s.start);
+          const end = s.ende ? formatTime(s.ende) : "läuft";
+          const pausenText =
+            Array.isArray(s.pausen) && s.pausen.length > 0
+              ? s.pausen.map((p) => ` (P ${formatTime(p.start)}–${p.ende ? formatTime(p.ende) : "läuft"})`).join("")
+              : "";
+          return `${start}${pausenText}–${end}`;
+        });
+        const subLines = `[${profile.abteilung || "–"}] ${shiftTexts.join(" · ")}`;
         rows.push(`
           <div class="day-row has-hours${isToday ? " is-today" : ""}">
             <div>
