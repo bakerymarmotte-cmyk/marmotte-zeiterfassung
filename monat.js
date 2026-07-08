@@ -1,5 +1,13 @@
 import { db } from "./firebase-config.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const typLabels = {
+  krank: "Krank",
+  unfall: "Unfall",
+  militaer: "Militär",
+  schwangerschaft: "Schwangerschaft",
+  bezahlter_frei_tag: "Bezahlter Frei Tag",
+};
 
 export function initMonatTab(session) {
   const uid = session.uid;
@@ -49,8 +57,10 @@ export function initMonatTab(session) {
     const feiertage = feiertageSnap.exists() && Array.isArray(feiertageSnap.data().list) ? feiertageSnap.data().list : [];
     const feiertagDates = new Set(feiertage.map((f) => f.date));
 
+    const absenceDates = await loadAbsenceDates(uid);
+
     // Monatswerte
-    const sollMinuten = calculateSollMinutes(viewYear, viewMonth, profile, general, feiertagDates);
+    const sollMinuten = calculateSollMinutes(viewYear, viewMonth, profile, general, feiertagDates, null, absenceDates);
     const { totalMinutes: istMinuten, perDay } = await calculateIstForMonth(uid, viewYear, viewMonth);
     const diffMinuten = istMinuten - sollMinuten;
 
@@ -58,30 +68,36 @@ export function initMonatTab(session) {
     istEl.textContent = formatMinutes(istMinuten);
     diffEl.textContent = (diffMinuten >= 0 ? "+" : "") + formatMinutes(diffMinuten);
     diffEl.className = "summary-value " + (diffMinuten >= 0 ? "positive" : "negative");
-    ferienBezogenEl.textContent = "0 T"; // folgt mit dem Anträge-Bereich
+
+    const ferienDatesThisMonth = new Set(
+      [...absenceDates.ferienDates].filter((iso) => iso.startsWith(`${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`))
+    );
+    const ferienBezogenMonat = countFerientage(ferienDatesThisMonth, feiertagDates);
+    ferienBezogenEl.textContent = `${ferienBezogenMonat} T`;
 
     // Feriensaldo
     const heuteStr = new Date().toLocaleDateString("de-CH");
     feriensaldoLabel.textContent = `Feriensaldo (Stand ${heuteStr})`;
     const ferienanspruch = (general.ferientageProJahr || 25) * ((profile.stellenprozent || 100) / 100);
-    const ferienSaldo = ferienanspruch - 0; // bezogene Ferientage folgen mit dem Anträge-Bereich
+    const ferienBezogenTotal = countFerientage(absenceDates.ferienDates, feiertagDates, toISODate(new Date()));
+    const ferienSaldo = ferienanspruch - ferienBezogenTotal;
     feriensaldoValue.textContent = `${ferienSaldo.toFixed(1)} Tage`;
 
     // Gleitzeitkonto (kumuliert ab Anstellungsdatum)
     if (profile.anstellungsdatum) {
       const startDate = new Date(profile.anstellungsdatum);
       gleitzeitLabel.textContent = `Gleitzeitkonto (ab ${startDate.toLocaleDateString("de-CH")})`;
-      const gleitzeitMinuten = await calculateGleitzeitkonto(uid, profile, general, feiertagDates, startDate);
+      const gleitzeitMinuten = await calculateGleitzeitkonto(uid, profile, general, feiertagDates, startDate, absenceDates);
       gleitzeitValue.textContent = (gleitzeitMinuten >= 0 ? "+" : "") + formatMinutes(gleitzeitMinuten);
       gleitzeitValue.className = "balance-value " + (gleitzeitMinuten >= 0 ? "positive" : "negative");
     } else {
       gleitzeitValue.textContent = "–";
     }
 
-    renderDayList(viewYear, viewMonth, perDay);
+    renderDayList(viewYear, viewMonth, perDay, absenceDates);
   }
 
-  function renderDayList(year, month, perDay) {
+  function renderDayList(year, month, perDay, absenceDates) {
     const monthEnd = new Date(year, month + 1, 0);
     const todayISO = toISODate(new Date());
     const rows = [];
@@ -113,11 +129,12 @@ export function initMonatTab(session) {
             <div class="day-hours">${formatMinutes(dayData.minutes)}</div>
           </div>`);
       } else {
+        const absence = absenceDates.get(iso);
         rows.push(`
           <div class="day-row${isToday ? " is-today" : ""}">
             <div>
               <div class="day-date">${dateLabel}</div>
-              <div class="day-sub">Frei</div>
+              <div class="day-sub">${absence ? escapeHtml(absence) : "Frei"}</div>
             </div>
           </div>`);
       }
@@ -126,10 +143,62 @@ export function initMonatTab(session) {
   }
 }
 
+// Lädt genehmigte Ferien und eingetragene Abwesenheiten für einen Mitarbeiter
+// und gibt eine Map von "YYYY-MM-DD" -> Anzeige-Label zurück.
+async function loadAbsenceDates(uid) {
+  const map = new Map();
+  const ferienDates = new Set();
+
+  const ferienSnap = await getDocs(
+    query(collection(db, "ferienantraege"), where("uid", "==", uid), where("status", "==", "genehmigt"))
+  );
+  ferienSnap.forEach((docSnap) => {
+    const r = docSnap.data();
+    for (const iso of expandDateRange(r.von, r.bis)) {
+      map.set(iso, "Ferien");
+      ferienDates.add(iso);
+    }
+  });
+
+  const abwSnap = await getDocs(query(collection(db, "abwesenheiten"), where("uid", "==", uid)));
+  abwSnap.forEach((docSnap) => {
+    const r = docSnap.data();
+    const label = r.typ === "bezahlter_frei_tag" ? (r.bemerkung || "Bezahlter Frei Tag") : (typLabels[r.typ] || r.typ);
+    for (const iso of expandDateRange(r.von, r.bis)) map.set(iso, label);
+  });
+
+  map.ferienDates = ferienDates; // kleiner Zusatz, damit wir die Ferientage separat zählen können
+  return map;
+}
+
+// Zählt nur Wochentage (Mo–Fr), die keine Feiertage sind – das sind die Tage,
+// die tatsächlich vom Ferienguthaben abgezogen werden.
+function countFerientage(dateSet, feiertagDates, upToDateISO) {
+  let count = 0;
+  for (const iso of dateSet) {
+    if (upToDateISO && iso > upToDateISO) continue;
+    const d = new Date(iso);
+    const weekday = d.getDay();
+    if (weekday === 0 || weekday === 6) continue;
+    if (feiertagDates.has(iso)) continue;
+    count++;
+  }
+  return count;
+}
+
+function expandDateRange(von, bis) {
+  const result = [];
+  if (!von || !bis) return result;
+  for (let d = new Date(von); toISODate(d) <= bis; d.setDate(d.getDate() + 1)) {
+    result.push(toISODate(d));
+  }
+  return result;
+}
+
 // Tagessoll = (Wochenstunden bei 100% × Stellenprozent) ÷ Arbeitstage/Woche
 // Monatssoll = Tagessoll × Anzahl Wochentage (Mo–Fr) im Monat, minus Feiertage,
 // ab dem späteren von Monatsanfang/Anstellungsdatum, bis capEnd (Standard: Monatsende).
-function calculateSollMinutes(year, month, profile, general, feiertagDates, capEnd) {
+function calculateSollMinutes(year, month, profile, general, feiertagDates, capEnd, absenceDates) {
   const stellenprozent = profile.stellenprozent || 100;
   const arbeitstageProWoche = profile.arbeitstageProWoche || 5;
   const wochenstunden100 = general.wochenstunden100 || 42;
@@ -151,7 +220,9 @@ function calculateSollMinutes(year, month, profile, general, feiertagDates, capE
   for (let d = new Date(rangeStart); d <= monthEnd; d.setDate(d.getDate() + 1)) {
     const weekday = d.getDay();
     if (weekday === 0 || weekday === 6) continue;
-    if (feiertagDates.has(toISODate(d))) continue;
+    const iso = toISODate(d);
+    if (feiertagDates.has(iso)) continue;
+    if (absenceDates && absenceDates.has(iso)) continue;
     sollArbeitstage++;
   }
 
@@ -200,7 +271,7 @@ async function calculateIstForMonth(uid, year, month) {
   return { totalMinutes, perDay };
 }
 
-async function calculateGleitzeitkonto(uid, profile, general, feiertagDates, startDate) {
+async function calculateGleitzeitkonto(uid, profile, general, feiertagDates, startDate, absenceDates) {
   const today = new Date();
   let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
   const endCursor = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -212,7 +283,7 @@ async function calculateGleitzeitkonto(uid, profile, general, feiertagDates, sta
     const monthEnd = new Date(y, m + 1, 0);
     const capEnd = monthEnd < today ? monthEnd : today;
 
-    const soll = calculateSollMinutes(y, m, profile, general, feiertagDates, capEnd);
+    const soll = calculateSollMinutes(y, m, profile, general, feiertagDates, capEnd, absenceDates);
     const { totalMinutes: ist } = await calculateIstForMonth(uid, y, m);
     totalDiff += (ist - soll);
 
@@ -238,4 +309,10 @@ function formatMinutes(totalMinutes) {
   const h = Math.floor(abs / 60);
   const m = abs % 60;
   return `${sign}${h}h ${String(m).padStart(2, "0")}m`;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
 }
