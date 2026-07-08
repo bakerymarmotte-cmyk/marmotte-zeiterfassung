@@ -644,7 +644,29 @@
       </div>
 
       <div class="abw-subpanel" id="ausw-sub-jahr">
-        <div class="placeholder-box">Die Jahresübersicht folgt im nächsten Bauabschnitt.</div>
+        <div class="card form-card">
+          <div class="form-row-2">
+            <div class="field">
+              <label for="jahr-select">Jahr</label>
+              <select id="jahr-select"></select>
+            </div>
+            <div class="field">
+              <label for="jahr-abteilung">Abteilung</label>
+              <select id="jahr-abteilung">
+                <option value="alle">Alle</option>
+                <option value="Bäckerei">Bäckerei</option>
+                <option value="Tearoom&Laden">Tearoom & Laden</option>
+                <option value="Dorfladen">Dorfladen</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="jahr-mitarbeiter">Mitarbeiter</label>
+            <select id="jahr-mitarbeiter"><option value="alle">Alle</option></select>
+          </div>
+          <button class="btn btn-primary" id="jahr-filter-btn" style="width:100%;">Filtern</button>
+        </div>
+        <div id="jahr-results"></div>
       </div>
     </div>
 

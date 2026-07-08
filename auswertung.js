@@ -24,6 +24,7 @@ export function initAuswertungTab(session) {
   setupSubtabs();
   setupLiveStatus();
   setupUebersicht(session);
+  setupJahresuebersicht(session);
   setupDetailModal();
 }
 
@@ -604,4 +605,79 @@ function formatMinutes(totalMinutes) {
   const h = Math.floor(abs / 60);
   const m = abs % 60;
   return `${sign}${h}h ${String(m).padStart(2, "0")}m`;
+}
+
+// ---- Jahresübersicht (nutzt dieselbe Berechnungs-/Karten-/PDF-Logik wie die Übersicht) ----
+
+let jahrEmployeesCache = null;
+
+function setupJahresuebersicht(session) {
+  const yearEl = document.getElementById("jahr-select");
+  const abtEl = document.getElementById("jahr-abteilung");
+  const mitEl = document.getElementById("jahr-mitarbeiter");
+  const filterBtn = document.getElementById("jahr-filter-btn");
+
+  const currentYear = new Date().getFullYear();
+  for (let y = currentYear; y >= currentYear - 3; y--) {
+    const opt = document.createElement("option");
+    opt.value = y;
+    opt.textContent = y;
+    yearEl.appendChild(opt);
+  }
+
+  loadEmployeeOptions().then(renderJahr);
+  filterBtn.addEventListener("click", renderJahr);
+
+  async function loadEmployeeOptions() {
+    const snap = await getDocs(query(collection(db, "users"), orderBy("name")));
+    jahrEmployeesCache = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+    mitEl.innerHTML =
+      '<option value="alle">Alle</option>' +
+      jahrEmployeesCache.map((e) => `<option value="${e.uid}">${escapeHtml(e.name)}</option>`).join("");
+  }
+
+  async function renderJahr() {
+    const resultsEl = document.getElementById("jahr-results");
+    resultsEl.innerHTML = '<div class="hint-text">Lädt…</div>';
+    if (!jahrEmployeesCache) await loadEmployeeOptions();
+
+    const [generalSnap, feiertageSnap] = await Promise.all([
+      getDoc(doc(db, "settings", "general")),
+      getDoc(doc(db, "settings", "feiertage")),
+    ]);
+    uebersichtGeneral = generalSnap.exists() ? generalSnap.data() : { wochenstunden100: 42, ferientageProJahr: 25 };
+    const feiertageList = feiertageSnap.exists() && Array.isArray(feiertageSnap.data().list) ? feiertageSnap.data().list : [];
+    uebersichtFeiertage = new Set(feiertageList.map((f) => f.date));
+
+    const year = Number(yearEl.value) || currentYear;
+    const todayISO = toISODate(new Date());
+    const von = `${year}-01-01`;
+    const bis = year === currentYear ? todayISO : `${year}-12-31`;
+
+    const abtFilter = abtEl.value;
+    const mitFilter = mitEl.value;
+
+    let employees = jahrEmployeesCache;
+    if (mitFilter !== "alle") {
+      employees = employees.filter((e) => e.uid === mitFilter);
+    } else if (abtFilter !== "alle") {
+      employees = employees.filter((e) => getAbteilungen(e).includes(abtFilter));
+    }
+
+    const [ferienSnap, abwSnap] = await Promise.all([
+      getDocs(query(collection(db, "ferienantraege"), where("status", "==", "genehmigt"))),
+      getDocs(collection(db, "abwesenheiten")),
+    ]);
+    const allFerien = ferienSnap.docs.map((d) => d.data());
+    const allAbw = abwSnap.docs.map((d) => d.data());
+
+    resultsEl.innerHTML = "";
+    for (const emp of employees) {
+      const report = await computeEmployeeReport(emp, von, bis, allFerien, allAbw);
+      resultsEl.appendChild(renderEmployeeCard(emp, report, von, bis));
+    }
+    if (employees.length === 0) {
+      resultsEl.innerHTML = '<div class="hint-text">Keine Mitarbeiter gefunden.</div>';
+    }
+  }
 }
