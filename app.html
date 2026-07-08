@@ -270,6 +270,44 @@
 
   .abw-subpanel { display: none; }
   .abw-subpanel.active { display: block; }
+
+  /* Arbeitsplan / Planung Wochenansicht */
+  .abteilung-block { margin-bottom: 28px; }
+  .abteilung-heading {
+    font-family: var(--font-display); font-weight: 800; color: var(--color-yellow);
+    font-size: 15px; text-transform: uppercase; letter-spacing: 0.03em;
+    margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--color-border);
+  }
+  .arbeitsplan-day { margin-bottom: 14px; }
+  .arbeitsplan-day-header {
+    display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px;
+  }
+  .arbeitsplan-day-header .day-weekday { font-weight: 700; font-size: 14.5px; }
+  .arbeitsplan-day-header .day-daydate { font-size: 13px; color: var(--color-text-muted); }
+  .today-badge {
+    background: var(--color-surface-raised); color: var(--color-yellow);
+    font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+  }
+  .shift-card {
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 8px;
+  }
+  .shift-card-main { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .shift-card-time { font-family: var(--font-mono); font-size: 13px; color: var(--color-yellow); margin-top: 2px; }
+  .shift-card-sub { font-size: 12.5px; color: var(--color-text-muted); margin-top: 4px; }
+  .shift-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .icon-btn {
+    background: var(--color-surface-raised); border: 1px solid var(--color-border);
+    border-radius: 8px; width: 32px; height: 32px; font-size: 14px;
+  }
+  .icon-btn-danger:hover { border-color: var(--color-danger); }
+  .add-shift-btn {
+    width: 100%; background: transparent; border: 1px dashed var(--color-border);
+    color: var(--color-text-muted); border-radius: var(--radius-md); padding: 10px;
+    font-size: 13px; font-weight: 600; margin-bottom: 4px;
+  }
+  .add-shift-btn:hover { border-color: var(--color-yellow); color: var(--color-yellow); }
+  .no-shifts-text { margin-bottom: 10px; }
 </style>
 </head>
 <body>
@@ -360,8 +398,6 @@
       <div class="balance-value" id="gleitzeit-value">–</div>
     </div>
 
-    <div class="hint-text" style="margin: 4px 0 16px;">Ferientage &amp; Abwesenheiten erscheinen hier automatisch, sobald der Anträge- bzw. Abwesenheiten-Bereich fertig ist.</div>
-
     <div id="month-day-list"></div>
   </section>
 
@@ -398,8 +434,12 @@
 
   <!-- ARBEITSPLAN -->
   <section class="tab-panel" id="panel-arbeitsplan">
-    <h2 class="section-title">Arbeitsplan</h2>
-    <div class="placeholder-box">Der Arbeitsplan folgt in einem der nächsten Bauabschnitte.</div>
+    <div class="month-nav">
+      <button id="week-prev" class="month-nav-btn">‹</button>
+      <span class="month-label" id="week-label">–</span>
+      <button id="week-next" class="month-nav-btn">›</button>
+    </div>
+    <div id="arbeitsplan-content"></div>
   </section>
 
   <!-- ADMIN/LEITUNG -->
@@ -452,7 +492,12 @@
     </div>
 
     <div class="subpanel" id="sub-planung">
-      <div class="placeholder-box">Die Arbeitsplan-Erstellung folgt in einem der nächsten Bauabschnitte.</div>
+      <div class="month-nav">
+        <button id="woche-prev-admin" class="month-nav-btn">‹</button>
+        <span class="month-label" id="woche-label-admin">–</span>
+        <button id="woche-next-admin" class="month-nav-btn">›</button>
+      </div>
+      <div id="planung-content"></div>
     </div>
 
     <div class="subpanel" id="sub-einstellungen">
@@ -551,6 +596,40 @@
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" id="employee-cancel-btn">Abbrechen</button>
         <button type="submit" class="btn btn-primary" id="employee-save-btn">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Schicht eintragen/bearbeiten -->
+<div class="modal-backdrop" id="shift-modal">
+  <div class="modal-sheet">
+    <h3 id="shift-modal-title">Schicht eintragen</h3>
+    <form id="shift-form">
+      <div class="field">
+        <label for="shift-mitarbeiter">Mitarbeitende/r</label>
+        <select id="shift-mitarbeiter" required></select>
+      </div>
+      <div class="field">
+        <label for="shift-abteilung">Abteilung</label>
+        <select id="shift-abteilung" required>
+          <option value="Bäckerei">Bäckerei</option>
+          <option value="Tearoom&Laden">Tearoom & Laden</option>
+          <option value="Dorfladen">Dorfladen</option>
+        </select>
+      </div>
+      <div class="form-row-2">
+        <div class="field"><label for="shift-von">Von</label><input type="time" id="shift-von" required></div>
+        <div class="field"><label for="shift-bis">Bis</label><input type="time" id="shift-bis" required></div>
+      </div>
+      <div class="field">
+        <label for="shift-bemerkung">Bemerkung (optional)</label>
+        <input type="text" id="shift-bemerkung" placeholder="z.B. Vertretung">
+      </div>
+      <div class="error-text" id="shift-error"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="shift-cancel-btn">Abbrechen</button>
+        <button type="submit" class="btn btn-primary" id="shift-save-btn">Speichern</button>
       </div>
     </form>
   </div>
