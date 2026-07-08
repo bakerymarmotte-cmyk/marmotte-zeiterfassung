@@ -12,24 +12,22 @@
 <style>
   .login-wrap { width: 100%; max-width: 400px; }
   .brand-row {
-    display: flex; align-items: center; gap: 14px; margin-bottom: 36px; justify-content: center;
+    text-align: center; margin-bottom: 36px;
   }
-  .brand-row img { width: 52px; height: 52px; border-radius: 14px; }
-  .brand-row .brand-text { text-align: left; }
   .brand-title {
     font-family: var(--font-display);
-    font-size: 20px;
+    font-size: 36px;
     color: var(--color-yellow);
     letter-spacing: -0.01em;
     line-height: 1.1;
   }
   .brand-sub {
-    font-size: 12.5px;
+    font-size: 28px;
+    font-family: var(--font-display);
     color: var(--color-yellow);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    margin-top: 2px;
-    opacity: 0.85;
+    letter-spacing: -0.01em;
+    margin-top: 4px;
+    opacity: 0.9;
   }
   .login-card { padding: 36px 32px 32px; text-align: center; }
   .login-card h1 {
@@ -49,10 +47,6 @@
     font-size: 12.5px;
     margin-top: 22px;
   }
-  .status-dot {
-    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-    background: var(--color-text-muted); margin-right: 6px;
-  }
 </style>
 </head>
 <body>
@@ -60,11 +54,8 @@
 <div class="centered-screen">
   <div class="login-wrap">
     <div class="brand-row">
-      <img src="assets/icon_zeiterfassung_192.png" alt="Marmotte Logo">
-      <div class="brand-text">
-        <div class="brand-title">MARMOTTE</div>
-        <div class="brand-sub">Zeiterfassung</div>
-      </div>
+      <div class="brand-title">Marmotte</div>
+      <div class="brand-sub">Zeiterfassung</div>
     </div>
 
     <div class="card login-card">
@@ -74,11 +65,11 @@
       <form id="login-form">
         <div class="field">
           <label for="email">E-Mail</label>
-          <input type="email" id="email" name="email" placeholder="name@firma.ch" required autocomplete="username">
+          <input type="email" id="email" name="email" required autocomplete="username">
         </div>
         <div class="field">
           <label for="password">Passwort</label>
-          <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+          <input type="password" id="password" name="password" required autocomplete="current-password">
         </div>
 
         <div class="error-text" id="error-text"></div>
@@ -88,8 +79,6 @@
         </button>
       </form>
     </div>
-
-    <p class="footer-note" id="conn-status"><span class="status-dot" id="conn-dot"></span>Verbindung wird geprüft …</p>
   </div>
 </div>
 
@@ -101,12 +90,6 @@
   const form = document.getElementById("login-form");
   const errorText = document.getElementById("error-text");
   const submitBtn = document.getElementById("submit-btn");
-  const connDot = document.getElementById("conn-dot");
-  const connStatus = document.getElementById("conn-status");
-
-  // Kleine Sichtprüfung: sind wir überhaupt mit Firebase verbunden?
-  connDot.style.background = "var(--color-success)";
-  connStatus.innerHTML = '<span class="status-dot" style="background:var(--color-success)"></span>Mit Marmotte-Firebase verbunden';
 
   const messages = {
     "auth/invalid-email": "Diese E-Mail-Adresse ist ungültig.",
