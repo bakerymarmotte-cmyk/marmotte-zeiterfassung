@@ -19,9 +19,6 @@ export function initStempelTab(session) {
   const shiftList = document.getElementById("today-shift-list");
 
   abteilungEl.textContent = abteilung;
-  if (abteilungen.length > 1) {
-    abteilungEl.innerHTML = `<select id="stempel-abteilung-select">${abteilungen.map((a) => `<option value="${a}">${a}</option>`).join("")}</select>`;
-  }
 
   let currentShifts = [];
 
@@ -53,9 +50,7 @@ export function initStempelTab(session) {
     const status = getStatus(currentShifts);
 
     if (action === "kommen") {
-      const selectEl = document.getElementById("stempel-abteilung-select");
-      const gewaehlteAbteilung = selectEl ? selectEl.value : (abteilungen[0] || null);
-      currentShifts.push({ start: now, ende: null, pausen: [], abteilung: gewaehlteAbteilung });
+      currentShifts.push({ start: now, ende: null, pausen: [] });
     } else if (action === "pause") {
       status.shift.pausen.push({ start: now, ende: null });
     } else if (action === "pause-beenden") {
@@ -86,14 +81,6 @@ export function initStempelTab(session) {
     dotEl.className = "status-dot-badge";
     kommenRow.style.display = "none";
     pauseRow.style.display = "none";
-
-    if (abteilungen.length > 1) {
-      if (status.state === "idle") {
-        abteilungEl.innerHTML = `<select id="stempel-abteilung-select">${abteilungen.map((a) => `<option value="${a}">${a}</option>`).join("")}</select>`;
-      } else {
-        abteilungEl.textContent = status.shift.abteilung || abteilung;
-      }
-    }
 
     if (status.state === "idle") {
       dotEl.classList.add("dot-idle");
@@ -142,7 +129,7 @@ export function initStempelTab(session) {
         return `
         <div class="shift-row">
           <div class="shift-row-main">
-            <span class="shift-label">Schicht ${i + 1}${abteilungen.length > 1 && s.abteilung ? ` · ${s.abteilung}` : ""}</span>
+            <span class="shift-label">Schicht ${i + 1}</span>
             <span class="shift-range">${range}</span>
           </div>
           <div class="shift-row-pause">Pause: ${pausenText}</div>

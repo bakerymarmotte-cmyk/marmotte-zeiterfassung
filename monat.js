@@ -111,8 +111,6 @@ export function initMonatTab(session) {
 
       if (dayData && dayData.shifts.length > 0) {
         const abteilungen = Array.isArray(profile.abteilungen) ? profile.abteilungen : (profile.abteilung ? [profile.abteilung] : []);
-        const mehrereAbteilungen = abteilungen.length > 1;
-
         const shiftTexts = dayData.shifts.map((s) => {
           const start = formatTime(s.start);
           const end = s.ende ? formatTime(s.ende) : "läuft";
@@ -120,12 +118,9 @@ export function initMonatTab(session) {
             Array.isArray(s.pausen) && s.pausen.length > 0
               ? s.pausen.map((p) => ` (P ${formatTime(p.start)}–${p.ende ? formatTime(p.ende) : "läuft"})`).join("")
               : "";
-          const range = `${start}${pausenText}–${end}`;
-          return mehrereAbteilungen && s.abteilung ? `[${s.abteilung}] ${range}` : range;
+          return `${start}${pausenText}–${end}`;
         });
-        const subLines = mehrereAbteilungen
-          ? shiftTexts.join(" · ")
-          : `[${abteilungen.join(", ") || "–"}] ${shiftTexts.join(" · ")}`;
+        const subLines = `[${abteilungen.join(", ") || "–"}] ${shiftTexts.join(" · ")}`;
         rows.push(`
           <div class="day-row has-hours${isToday ? " is-today" : ""}">
             <div>
