@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marmotte Zeiterfassung – Login</title>
+<link rel="icon" href="assets/icon_zeiterfassung_favicon32.png" type="image/png">
+<link rel="apple-touch-icon" href="assets/icon_zeiterfassung_192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .login-wrap { width: 100%; max-width: 400px; }
+  .brand-row {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 36px; justify-content: center;
+  }
+  .brand-row img { width: 52px; height: 52px; border-radius: 14px; }
+  .brand-row .brand-text { text-align: left; }
+  .brand-title {
+    font-family: var(--font-display);
+    font-size: 20px;
+    color: var(--color-yellow);
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+  .brand-sub {
+    font-size: 12.5px;
+    color: var(--color-yellow);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-top: 2px;
+    opacity: 0.85;
+  }
+  .login-card { padding: 36px 32px 32px; text-align: center; }
+  .login-card h1 {
+    font-size: 22px;
+    margin: 0 0 6px;
+    font-weight: 700;
+  }
+  .login-card .sub {
+    color: var(--color-text-muted);
+    font-size: 14px;
+    margin: 0 0 28px;
+  }
+  form { text-align: left; }
+  .footer-note {
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 12.5px;
+    margin-top: 22px;
+  }
+  .status-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--color-text-muted); margin-right: 6px;
+  }
+</style>
+</head>
+<body>
+
+<div class="centered-screen">
+  <div class="login-wrap">
+    <div class="brand-row">
+      <img src="assets/icon_zeiterfassung_192.png" alt="Marmotte Logo">
+      <div class="brand-text">
+        <div class="brand-title">MARMOTTE</div>
+        <div class="brand-sub">Zeiterfassung</div>
+      </div>
+    </div>
+
+    <div class="card login-card">
+      <h1>Anmelden</h1>
+      <p class="sub">Melde dich mit deinen Zugangsdaten an.</p>
+
+      <form id="login-form">
+        <div class="field">
+          <label for="email">E-Mail</label>
+          <input type="email" id="email" name="email" placeholder="name@firma.ch" required autocomplete="username">
+        </div>
+        <div class="field">
+          <label for="password">Passwort</label>
+          <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+
+        <div class="error-text" id="error-text"></div>
+
+        <button type="submit" class="btn btn-primary" id="submit-btn" style="width:100%;">
+          Einloggen
+        </button>
+      </form>
+    </div>
+
+    <p class="footer-note" id="conn-status"><span class="status-dot" id="conn-dot"></span>Verbindung wird geprüft …</p>
+  </div>
+</div>
+
+<script type="module">
+  import { auth, db } from "./firebase-config.js";
+  import { signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const form = document.getElementById("login-form");
+  const errorText = document.getElementById("error-text");
+  const submitBtn = document.getElementById("submit-btn");
+  const connDot = document.getElementById("conn-dot");
+  const connStatus = document.getElementById("conn-status");
+
+  // Kleine Sichtprüfung: sind wir überhaupt mit Firebase verbunden?
+  connDot.style.background = "var(--color-success)";
+  connStatus.innerHTML = '<span class="status-dot" style="background:var(--color-success)"></span>Mit Marmotte-Firebase verbunden';
+
+  const messages = {
+    "auth/invalid-email": "Diese E-Mail-Adresse ist ungültig.",
+    "auth/user-disabled": "Dieses Konto wurde deaktiviert.",
+    "auth/user-not-found": "Kein Konto mit dieser E-Mail-Adresse gefunden.",
+    "auth/wrong-password": "Falsches Passwort.",
+    "auth/invalid-credential": "E-Mail oder Passwort ist falsch.",
+    "auth/too-many-requests": "Zu viele Versuche. Bitte kurz warten und erneut versuchen.",
+  };
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errorText.textContent = "";
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Wird geprüft …";
+
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const uid = cred.user.uid;
+
+      // Rolle des Nutzers aus Firestore laden (Sammlung "users", Dokument-ID = uid)
+      const userDoc = await getDoc(doc(db, "users", uid));
+
+      if (!userDoc.exists()) {
+        errorText.textContent = "Dieses Konto ist noch nicht vollständig eingerichtet. Bitte an den Admin wenden.";
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Einloggen";
+        return;
+      }
+
+      const userData = userDoc.data();
+      // Rolle merken, damit die nächste Seite weiss, welchen Bereich sie zeigen soll
+      sessionStorage.setItem("marmotte_role", userData.role || "mitarbeiter");
+      sessionStorage.setItem("marmotte_name", userData.name || "");
+
+      if (userData.role === "admin" || userData.role === "leitung") {
+        window.location.href = "admin.html";
+      } else {
+        window.location.href = "dashboard.html";
+      }
+
+    } catch (err) {
+      console.error(err);
+      errorText.textContent = messages[err.code] || "Anmeldung fehlgeschlagen. Bitte erneut versuchen.";
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Einloggen";
+    }
+  });
+
+  // Falls schon eingeloggt: direkt weiterleiten (optional, hier nur Info-Konsole)
+  onAuthStateChanged(auth, (user) => {
+    // Bewusst kein Auto-Redirect hier, damit man sich auf dieser Testseite
+    // auch bewusst neu einloggen kann.
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,176 @@
+/* ==========================================================================
+   Marmotte Zeiterfassung – Design-Tokens
+   ========================================================================== */
+:root {
+  /* Farben – abgestimmt auf das Marmotte-Logo */
+  --color-bg: #1A1A1A;           /* Anthrazit, exakt wie Logo-Hintergrund */
+  --color-surface: #232323;
+  --color-surface-raised: #2A2A2A;
+  --color-border: #363636;
+  --color-yellow: #FDD600;       /* Gold, exakt wie das "M" im Logo */
+  --color-yellow-deep: #E0BC00;
+  --color-text: #F5F5F0;
+  --color-text-muted: #9E9E9E;
+  --color-success: #4CAF7D;
+  --color-danger: #E5484D;
+
+  /* Typografie */
+  --font-display: "Archivo Black", "Arial Black", sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", "Courier New", monospace;
+
+  /* Sonstiges */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 24px;
+  --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+}
+
+body {
+  background-image:
+    radial-gradient(circle at 85% -10%, rgba(244, 193, 15, 0.10), transparent 45%),
+    radial-gradient(circle at -10% 110%, rgba(244, 193, 15, 0.06), transparent 40%);
+}
+
+a { color: var(--color-yellow); }
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+::selection { background: var(--color-yellow); color: #121212; }
+
+/* Scrollbar dezent */
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 8px; }
+
+/* ==========================================================================
+   Layout-Helfer
+   ========================================================================== */
+.centered-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+/* ==========================================================================
+   Stoppuhr-Signaturelement
+   ========================================================================== */
+.stopwatch-ring {
+  position: relative;
+  width: 64px;
+  height: 64px;
+}
+.stopwatch-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.stopwatch-ring circle {
+  fill: none;
+  stroke-width: 4;
+}
+.stopwatch-ring .track { stroke: var(--color-border); }
+.stopwatch-ring .progress {
+  stroke: var(--color-yellow);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+
+/* ==========================================================================
+   Formulare
+   ========================================================================== */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+  text-align: left;
+}
+.field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.field input, .field select {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  color: var(--color-text);
+  font-size: 15px;
+  font-family: var(--font-body);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.field input:focus, .field select:focus {
+  border-color: var(--color-yellow);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 13px 20px;
+  font-weight: 700;
+  font-size: 15px;
+  transition: transform 0.1s ease, filter 0.15s ease;
+}
+.btn:active { transform: scale(0.98); }
+.btn-primary {
+  background: var(--color-yellow);
+  color: #1a1400;
+}
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:disabled {
+  background: var(--color-border);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+.btn-secondary {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+.btn-secondary:hover { border-color: var(--color-yellow); }
+.btn-danger {
+  background: transparent;
+  color: var(--color-danger);
+  border: 1px solid rgba(229, 72, 77, 0.4);
+}
+
+.error-text {
+  color: var(--color-danger);
+  font-size: 13.5px;
+  margin-top: -8px;
+  margin-bottom: 14px;
+  min-height: 18px;
+}
+
+.hint-text {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
