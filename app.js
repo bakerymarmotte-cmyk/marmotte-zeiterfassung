@@ -6,6 +6,7 @@ import { initMonatTab } from "./monat.js";
 import { initAntraegeTab } from "./antraege.js";
 import { initAbwesenheitenTab } from "./abwesenheiten.js";
 import { initArbeitsplanTab, initPlanungTab } from "./arbeitsplan.js";
+import { initAuswertungTab } from "./auswertung.js";
 
 let session = null;
 
@@ -50,6 +51,7 @@ async function start() {
     initSettingsTab(session);
     initAbwesenheitenTab(session);
     initPlanungTab(session);
+    initAuswertungTab(session);
   }
 }
 

@@ -309,6 +309,20 @@
   .add-shift-btn:hover { border-color: var(--color-yellow); color: var(--color-yellow); }
   .no-shifts-text { margin-bottom: 10px; }
 
+  /* Live-Status */
+  .status-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--color-surface); border-radius: var(--radius-md);
+    padding: 13px 16px; margin-bottom: 9px;
+  }
+  .status-item .info .name { font-weight: 700; font-size: 14.5px; }
+  .status-item .info .meta { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+    white-space: nowrap;
+  }
+
   /* Radio-/Checkbox-Pills im Mitarbeiter-Formular */
   .radio-row, .checkbox-row { display: flex; gap: 8px; flex-wrap: wrap; }
   .radio-pill, .checkbox-pill {
@@ -559,7 +573,29 @@
     </div>
 
     <div class="subpanel" id="sub-auswertung">
-      <div class="placeholder-box">Live-Status, Monats- &amp; Jahresübersicht folgen in einem der nächsten Bauabschnitte.</div>
+      <div class="subtabs" id="auswertung-subtabs">
+        <button data-auswsub="live" class="active">Live-Status</button>
+        <button data-auswsub="monat">Monatsübersicht</button>
+        <button data-auswsub="jahr">Jahresübersicht</button>
+      </div>
+
+      <div class="abw-subpanel active" id="ausw-sub-live">
+        <div class="subtabs" id="live-abteilung-filter">
+          <button data-abtfilter="alle" class="active">Alle</button>
+          <button data-abtfilter="Bäckerei">Bäckerei</button>
+          <button data-abtfilter="Tearoom&Laden">Tearoom & Laden</button>
+          <button data-abtfilter="Dorfladen">Dorfladen</button>
+        </div>
+        <div id="live-status-list"></div>
+      </div>
+
+      <div class="abw-subpanel" id="ausw-sub-monat">
+        <div class="placeholder-box">Die Monatsübersicht folgt im nächsten Bauabschnitt.</div>
+      </div>
+
+      <div class="abw-subpanel" id="ausw-sub-jahr">
+        <div class="placeholder-box">Die Jahresübersicht folgt im nächsten Bauabschnitt.</div>
+      </div>
     </div>
 
     <div class="subpanel" id="sub-abwesenheiten">
