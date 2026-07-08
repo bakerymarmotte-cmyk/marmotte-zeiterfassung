@@ -330,7 +330,7 @@ function expandRange(von, bis) {
 const abwLabelsShort = { krank: "Krank", unfall: "Unfall", militaer: "Militär", schwangerschaft: "Schwang.", bezahlter_frei_tag: "Frei Tag" };
 const abwIconsShort = { krank: "🤒", unfall: "🚑", militaer: "🎖️", schwangerschaft: "🤰", bezahlter_frei_tag: "🎉" };
 
-function renderEmployeeCard(emp, report, von, bis) {
+function renderEmployeeCard(emp, report, von, bis, showPdfButton = true) {
   const card = document.createElement("div");
   card.className = "uebersicht-card";
 
@@ -354,14 +354,15 @@ function renderEmployeeCard(emp, report, von, bis) {
       <div class="uebersicht-name-row">[${escapeHtml(emp.personalnummer || "–")}] ${escapeHtml(emp.name || "")} ${slPill} ${pills}</div>
       <div class="uebersicht-actions">
         <button class="btn btn-secondary" data-detail>Detail</button>
-        <button class="btn btn-primary" data-pdf>📄 PDF</button>
+        ${showPdfButton ? '<button class="btn btn-primary" data-pdf>📄 PDF</button>' : ""}
       </div>
     </div>
     <div class="uebersicht-stats">${statsHtml}</div>
   `;
 
   card.querySelector("[data-detail]").addEventListener("click", () => openDetailModal(emp, von, bis));
-  card.querySelector("[data-pdf]").addEventListener("click", () => generatePdf(emp, report, von, bis));
+  const pdfBtn = card.querySelector("[data-pdf]");
+  if (pdfBtn) pdfBtn.addEventListener("click", () => generatePdf(emp, report, von, bis));
 
   return card;
 }
@@ -599,6 +600,129 @@ function formatDatePdf(iso) {
   return `${d}.${m}.${y}`;
 }
 
+// ---- Jahresüberblick-PDF: alle Mitarbeiter auf einem PDF, eine Zeile pro Person ----
+
+const monatsNamenKurz = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+const abwKuerzel = { ferien: "Fer", krank: "Kr", unfall: "Unf", militaer: "Mil", schwangerschaft: "Schw", bezahlter_frei_tag: "BFT" };
+
+async function computeYearlyBreakdown(emp, year, allFerien, allAbw) {
+  const currentYear = new Date().getFullYear();
+  const startDate = new Date(year, 0, 1);
+  const endDate = year === currentYear ? new Date() : new Date(year, 11, 31);
+  const todayISO = toISODate(new Date());
+
+  const myFerien = allFerien.filter((f) => f.uid === emp.uid);
+  const myAbw = allAbw.filter((a) => a.uid === emp.uid);
+
+  const fetchPromises = [];
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    const iso = toISODate(d);
+    fetchPromises.push(getDoc(doc(db, "timeentries", `${emp.uid}_${iso}`)).then((snap) => ({ iso, snap })));
+  }
+  const timeResults = await Promise.all(fetchPromises);
+  const timeMap = {};
+  timeResults.forEach(({ iso, snap }) => {
+    timeMap[iso] = snap.exists() && Array.isArray(snap.data().shifts) ? snap.data().shifts : [];
+  });
+
+  const stellenprozent = emp.stellenprozent || 100;
+  const arbeitstageProWoche = emp.arbeitstageProWoche || 5;
+  const isStundenlohn = emp.anstellungsart === "stundenlohn";
+  const tagessollMinuten = ((uebersichtGeneral.wochenstunden100 || 42) * (stellenprozent / 100)) / arbeitstageProWoche * 60;
+
+  const monthlyIst = new Array(12).fill(0);
+  let jahresSoll = 0;
+  let jahresIst = 0;
+  const abwesenheitenCounts = {};
+
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    const iso = toISODate(d);
+    const month = d.getMonth();
+    const weekday = d.getDay();
+    const isWeekend = weekday === 0 || weekday === 6;
+    const isFeiertag = uebersichtFeiertage.has(iso);
+    const ferienHit = myFerien.find((f) => iso >= f.von && iso <= f.bis);
+    const abwHit = myAbw.find((a) => iso >= a.von && iso <= a.bis);
+    const shifts = timeMap[iso] || [];
+
+    let dayMinutes = 0;
+    shifts.forEach((s) => {
+      const st = new Date(s.start);
+      const en = s.ende ? new Date(s.ende) : iso === todayISO ? new Date() : null;
+      if (!en) return;
+      let m = (en - st) / 60000;
+      (s.pausen || []).forEach((p) => {
+        const ps = new Date(p.start);
+        const pe = p.ende ? new Date(p.ende) : new Date();
+        m -= (pe - ps) / 60000;
+      });
+      dayMinutes += Math.max(0, m);
+    });
+    monthlyIst[month] += dayMinutes;
+    jahresIst += dayMinutes;
+
+    if (!isStundenlohn && !isWeekend && !isFeiertag && !ferienHit && !abwHit) jahresSoll += tagessollMinuten;
+    if (abwHit) abwesenheitenCounts[abwHit.typ] = (abwesenheitenCounts[abwHit.typ] || 0) + 1;
+    if (ferienHit && !isWeekend && !isFeiertag) abwesenheitenCounts.ferien = (abwesenheitenCounts.ferien || 0) + 1;
+  }
+
+  return { monthlyIst, jahresSoll, jahresIst, gleitzeit: jahresIst - jahresSoll, abwesenheitenCounts, isStundenlohn };
+}
+
+async function generateJahresPdf({ employees, year, allFerien, allAbw }) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: "landscape" });
+
+  pdf.setFontSize(16);
+  pdf.text("Marmotte", 14, 15);
+  pdf.setFontSize(12);
+  pdf.text(`Jahresüberblick ${year}`, 14, 22);
+
+  const head = [["Nr.", "Name", ...monatsNamenKurz, "Soll", "Ist", "Gleitzeit", "Abwesenheiten"]];
+  const body = [];
+
+  for (const emp of employees) {
+    const bd = await computeYearlyBreakdown(emp, year, allFerien, allAbw);
+    const abwText = Object.entries(bd.abwesenheitenCounts)
+      .map(([typ, count]) => `${abwKuerzel[typ] || typ} ${count}`)
+      .join("  ");
+
+    body.push([
+      emp.personalnummer || "–",
+      emp.name || "",
+      ...bd.monthlyIst.map((m) => formatHoursShort(m)),
+      bd.isStundenlohn ? "–" : formatHoursShort(bd.jahresSoll),
+      formatHoursShort(bd.jahresIst),
+      bd.isStundenlohn ? "–" : (bd.gleitzeit >= 0 ? "+" : "") + formatHoursShort(bd.gleitzeit),
+      abwText || "–",
+    ]);
+  }
+
+  pdf.autoTable({
+    startY: 28,
+    head,
+    body,
+    styles: { fontSize: 7, cellPadding: 1.5 },
+    headStyles: { fillColor: [30, 30, 30] },
+    margin: { bottom: 16 },
+  });
+
+  const totalPages = pdf.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    pdf.setPage(i);
+    pdf.setFontSize(8);
+    pdf.text(`Seite ${i} von ${totalPages}`, 14, pdf.internal.pageSize.height - 8);
+  }
+
+  pdf.save(`Marmotte_Jahresüberblick_${year}.pdf`);
+}
+
+function formatHoursShort(totalMinutes) {
+  const sign = totalMinutes < 0 ? "-" : "";
+  const abs = Math.round(Math.abs(totalMinutes));
+  return `${sign}${Math.floor(abs / 60)}h${String(abs % 60).padStart(2, "0")}`;
+}
+
 function formatMinutes(totalMinutes) {
   const sign = totalMinutes < 0 ? "-" : "";
   const abs = Math.round(Math.abs(totalMinutes));
@@ -610,12 +734,14 @@ function formatMinutes(totalMinutes) {
 // ---- Jahresübersicht (nutzt dieselbe Berechnungs-/Karten-/PDF-Logik wie die Übersicht) ----
 
 let jahrEmployeesCache = null;
+let jahrCurrentContext = null; // { employees, year, allFerien, allAbw }
 
 function setupJahresuebersicht(session) {
   const yearEl = document.getElementById("jahr-select");
   const abtEl = document.getElementById("jahr-abteilung");
   const mitEl = document.getElementById("jahr-mitarbeiter");
   const filterBtn = document.getElementById("jahr-filter-btn");
+  const pdfBtn = document.getElementById("jahr-pdf-btn");
 
   const currentYear = new Date().getFullYear();
   for (let y = currentYear; y >= currentYear - 3; y--) {
@@ -627,6 +753,10 @@ function setupJahresuebersicht(session) {
 
   loadEmployeeOptions().then(renderJahr);
   filterBtn.addEventListener("click", renderJahr);
+  pdfBtn.addEventListener("click", () => {
+    if (!jahrCurrentContext) return;
+    generateJahresPdf(jahrCurrentContext);
+  });
 
   async function loadEmployeeOptions() {
     const snap = await getDocs(query(collection(db, "users"), orderBy("name")));
@@ -670,11 +800,12 @@ function setupJahresuebersicht(session) {
     ]);
     const allFerien = ferienSnap.docs.map((d) => d.data());
     const allAbw = abwSnap.docs.map((d) => d.data());
+    jahrCurrentContext = { employees, year, allFerien, allAbw };
 
     resultsEl.innerHTML = "";
     for (const emp of employees) {
       const report = await computeEmployeeReport(emp, von, bis, allFerien, allAbw);
-      resultsEl.appendChild(renderEmployeeCard(emp, report, von, bis));
+      resultsEl.appendChild(renderEmployeeCard(emp, report, von, bis, false));
     }
     if (employees.length === 0) {
       resultsEl.innerHTML = '<div class="hint-text">Keine Mitarbeiter gefunden.</div>';
