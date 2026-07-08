@@ -130,11 +130,18 @@ export function initMonatTab(session) {
           </div>`);
       } else {
         const absence = absenceDates.get(iso);
+        let subContent = "Frei";
+        let subStyle = "";
+        if (absence) {
+          const style = absenceStyles[absence.type];
+          subContent = `${style ? style.icon + " " : ""}${escapeHtml(absence.label)}`;
+          subStyle = style ? ` style="color:${style.color};"` : "";
+        }
         rows.push(`
           <div class="day-row${isToday ? " is-today" : ""}">
             <div>
               <div class="day-date">${dateLabel}</div>
-              <div class="day-sub">${absence ? escapeHtml(absence) : "Frei"}</div>
+              <div class="day-sub"${subStyle}>${subContent}</div>
             </div>
           </div>`);
       }
@@ -145,6 +152,15 @@ export function initMonatTab(session) {
 
 // Lädt genehmigte Ferien und eingetragene Abwesenheiten für einen Mitarbeiter
 // und gibt eine Map von "YYYY-MM-DD" -> Anzeige-Label zurück.
+const absenceStyles = {
+  ferien: { icon: "🌴", color: "#4CAF7D" },
+  krank: { icon: "🤒", color: "#E5484D" },
+  unfall: { icon: "🚑", color: "#E8792A" },
+  militaer: { icon: "🎖️", color: "#8A9A5B" },
+  schwangerschaft: { icon: "🤰", color: "#B084D0" },
+  bezahlter_frei_tag: { icon: "🎉", color: "#4A9FE0" },
+};
+
 async function loadAbsenceDates(uid) {
   const map = new Map();
   const ferienDates = new Set();
@@ -155,7 +171,7 @@ async function loadAbsenceDates(uid) {
   ferienSnap.forEach((docSnap) => {
     const r = docSnap.data();
     for (const iso of expandDateRange(r.von, r.bis)) {
-      map.set(iso, "Ferien");
+      map.set(iso, { type: "ferien", label: "Ferien" });
       ferienDates.add(iso);
     }
   });
@@ -164,7 +180,7 @@ async function loadAbsenceDates(uid) {
   abwSnap.forEach((docSnap) => {
     const r = docSnap.data();
     const label = r.typ === "bezahlter_frei_tag" ? (r.bemerkung || "Bezahlter Frei Tag") : (typLabels[r.typ] || r.typ);
-    for (const iso of expandDateRange(r.von, r.bis)) map.set(iso, label);
+    for (const iso of expandDateRange(r.von, r.bis)) map.set(iso, { type: r.typ, label });
   });
 
   map.ferienDates = ferienDates; // kleiner Zusatz, damit wir die Ferientage separat zählen können
