@@ -13,6 +13,8 @@
 <meta name="apple-mobile-web-app-title" content="Marmotte">
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
   body { padding-bottom: 0; }
 
@@ -270,6 +272,160 @@
 
   .abw-subpanel { display: none; }
   .abw-subpanel.active { display: block; }
+
+  /* Arbeitsplan / Planung Wochenansicht */
+  .abteilung-block { margin-bottom: 28px; }
+  .abteilung-heading {
+    font-family: var(--font-display); font-weight: 800; color: var(--color-yellow);
+    font-size: 15px; text-transform: uppercase; letter-spacing: 0.03em;
+    margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--color-border);
+  }
+  .arbeitsplan-day { margin-bottom: 14px; }
+  .arbeitsplan-day-header {
+    display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px;
+  }
+  .arbeitsplan-day-header .day-weekday { font-weight: 700; font-size: 14.5px; }
+  .arbeitsplan-day-header .day-daydate { font-size: 13px; color: var(--color-text-muted); }
+  .today-badge {
+    background: var(--color-surface-raised); color: var(--color-yellow);
+    font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+  }
+  .shift-card {
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 8px;
+  }
+  .shift-card-main { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .shift-card-time { font-family: var(--font-mono); font-size: 13px; color: var(--color-yellow); margin-top: 2px; }
+  .shift-card-sub { font-size: 12.5px; color: var(--color-text-muted); margin-top: 4px; }
+  .shift-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .icon-btn {
+    background: var(--color-surface-raised); border: 1px solid var(--color-border);
+    border-radius: 8px; width: 32px; height: 32px; font-size: 14px;
+  }
+  .icon-btn-danger:hover { border-color: var(--color-danger); }
+  .add-shift-btn {
+    width: 100%; background: transparent; border: 1px dashed var(--color-border);
+    color: var(--color-text-muted); border-radius: var(--radius-md); padding: 10px;
+    font-size: 13px; font-weight: 600; margin-bottom: 4px;
+  }
+  .add-shift-btn:hover { border-color: var(--color-yellow); color: var(--color-yellow); }
+  .no-shifts-text { margin-bottom: 10px; }
+
+  /* ============================================================
+     Breite Bildschirme (Tablet/Desktop) – v.a. für Admin/Leitung
+     ============================================================ */
+  @media (min-width: 900px) {
+    main {
+      max-width: 1100px;
+    }
+    .topbar, .bottom-nav {
+      max-width: none;
+      padding-left: 32px;
+      padding-right: 32px;
+    }
+
+    /* Stempel & Monat bleiben handy-breit, auch auf grossen Bildschirmen */
+    #panel-stempel, #panel-monat {
+      max-width: 430px;
+      margin: 0 auto;
+    }
+
+    /* Team: Mitarbeiterliste als Raster statt einer Spalte */
+    .employee-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    /* Live-Status: mehr Karten nebeneinander */
+    .status-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    /* Übersicht & Jahresübersicht: Karten nebeneinander */
+    #uebersicht-results, #jahr-results {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+    #uebersicht-results .uebersicht-card, #jahr-results .uebersicht-card {
+      margin-bottom: 0;
+    }
+
+    /* Arbeitsplan & Planung: Abteilungen nebeneinander statt untereinander */
+    #arbeitsplan-content, #planung-content {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+    #arbeitsplan-content .abteilung-block, #planung-content .abteilung-block {
+      margin-bottom: 0;
+    }
+
+    /* Modal etwas grosszügiger */
+    .modal-sheet { max-width: 560px; border-radius: 20px; }
+    .modal-backdrop { align-items: center; }
+  }
+
+  @media (min-width: 1300px) {
+    .status-grid { grid-template-columns: repeat(4, 1fr); }
+    #uebersicht-results, #jahr-results { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* Live-Status */
+  .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .status-item {
+    background: var(--color-surface); border-radius: var(--radius-md);
+    padding: 14px 16px;
+  }
+  .status-item .name-row { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 14.5px; }
+  .status-item .status-label { font-size: 13px; font-weight: 700; margin-top: 6px; }
+  .status-item .status-time { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+
+  /* Übersicht (Auswertung) */
+  .uebersicht-card {
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 10px;
+  }
+  .uebersicht-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+  .uebersicht-name-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-weight: 700; font-size: 14.5px; }
+  .uebersicht-pill {
+    font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+    background: var(--color-surface-raised); color: var(--color-text-muted); text-transform: uppercase;
+  }
+  .uebersicht-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .uebersicht-actions .btn { padding: 8px 12px; font-size: 12.5px; }
+  .uebersicht-stats { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--color-text-muted); }
+  .uebersicht-stats strong { color: var(--color-text); }
+  .uebersicht-stats .negative strong { color: var(--color-danger); }
+  .uebersicht-stats .positive strong { color: var(--color-success); }
+
+  .detail-shift-row {
+    background: var(--color-surface-raised); border-radius: var(--radius-md);
+    padding: 10px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+  .detail-shift-row .date { font-weight: 700; font-size: 13.5px; }
+  .detail-shift-row .sub { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+  .manual-badge { font-size: 10px; font-weight: 700; color: var(--color-yellow); margin-left: 6px; }
+  .detail-shift-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  /* Radio-/Checkbox-Pills im Mitarbeiter-Formular */
+  .radio-row, .checkbox-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .radio-pill, .checkbox-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--color-surface-raised); border: 1px solid var(--color-border);
+    border-radius: 999px; padding: 8px 14px; font-size: 13.5px; cursor: pointer;
+  }
+  .radio-pill:has(input:checked), .checkbox-pill:has(input:checked) {
+    border-color: var(--color-yellow); color: var(--color-yellow);
+  }
+  .radio-pill input, .checkbox-pill input { accent-color: var(--color-yellow); }
+
+  .field input:disabled {
+    opacity: 0.6; cursor: not-allowed;
+  }
 </style>
 </head>
 <body>
@@ -333,7 +489,7 @@
     </div>
 
     <div class="month-summary-grid">
-      <div class="summary-card" id="soll-card">
+      <div class="summary-card">
         <div class="summary-label">Soll</div>
         <div class="summary-value" id="month-soll">–</div>
       </div>
@@ -341,7 +497,7 @@
         <div class="summary-label">Gearbeitet</div>
         <div class="summary-value" id="month-ist">–</div>
       </div>
-      <div class="summary-card" id="diff-card">
+      <div class="summary-card">
         <div class="summary-label">Differenz</div>
         <div class="summary-value" id="month-diff">–</div>
       </div>
@@ -355,7 +511,7 @@
       <div class="summary-label" id="feriensaldo-label">Feriensaldo</div>
       <div class="balance-value" id="feriensaldo-value">–</div>
     </div>
-    <div class="balance-card" id="gleitzeit-card">
+    <div class="balance-card">
       <div class="summary-label" id="gleitzeit-label">Gleitzeitkonto</div>
       <div class="balance-value" id="gleitzeit-value">–</div>
     </div>
@@ -396,8 +552,12 @@
 
   <!-- ARBEITSPLAN -->
   <section class="tab-panel" id="panel-arbeitsplan">
-    <h2 class="section-title">Arbeitsplan</h2>
-    <div class="placeholder-box">Der Arbeitsplan folgt in einem der nächsten Bauabschnitte.</div>
+    <div class="month-nav">
+      <button id="week-prev" class="month-nav-btn">‹</button>
+      <span class="month-label" id="week-label">–</span>
+      <button id="week-next" class="month-nav-btn">›</button>
+    </div>
+    <div id="arbeitsplan-content"></div>
   </section>
 
   <!-- ADMIN/LEITUNG -->
@@ -411,12 +571,167 @@
     </div>
 
     <div class="subpanel active" id="sub-team">
-      <div id="employee-list" class="employee-list"></div>
-      <button class="fab" id="add-employee-fab" title="Mitarbeiter hinzufügen">+</button>
+      <div class="subtabs" id="team-subnav">
+        <button data-teamview="list" class="active">👥 Mitarbeitende</button>
+        <button data-teamview="form">+ Neu</button>
+      </div>
+
+      <div id="team-list-view">
+        <div id="employee-list" class="employee-list"></div>
+      </div>
+
+      <div id="team-form-view" style="display:none;">
+        <h3 class="section-title" id="team-form-title">Neuen Mitarbeitenden hinzufügen</h3>
+        <form id="employee-form">
+          <div class="field">
+            <label for="emp-name">Name</label>
+            <input type="text" id="emp-name" required>
+          </div>
+          <div class="field">
+            <label for="emp-personalnummer">Personalnummer</label>
+            <input type="text" id="emp-personalnummer" required>
+          </div>
+          <div class="field">
+            <label for="emp-email">E-Mail</label>
+            <input type="email" id="emp-email" required>
+          </div>
+          <div class="field" id="emp-password-field">
+            <label for="emp-password">Passwort (temporär)</label>
+            <input type="text" id="emp-password" minlength="6">
+            <span class="hint-text">Der Mitarbeiter muss es beim ersten Login selbst ändern.</span>
+          </div>
+
+          <div class="field">
+            <label>Anstellungsart</label>
+            <div class="radio-row">
+              <label class="radio-pill"><input type="radio" name="emp-anstellungsart" value="festangestellt" checked> Festangestellt</label>
+              <label class="radio-pill"><input type="radio" name="emp-anstellungsart" value="stundenlohn"> Stundenlöhner</label>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="field">
+              <label for="emp-stellenprozent">Stellenprozent (%)</label>
+              <input type="number" id="emp-stellenprozent" min="1" max="100" value="100">
+            </div>
+            <div class="field">
+              <label for="emp-arbeitstage">Arbeitstage / Woche</label>
+              <input type="number" id="emp-arbeitstage" min="1" max="7" value="5">
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="field" id="emp-wochenstunden-field">
+              <label for="emp-wochenstunden-auto">Wochenstunden (auto)</label>
+              <input type="text" id="emp-wochenstunden-auto" disabled value="—">
+            </div>
+            <div class="field">
+              <label for="emp-ferientage-auto">Ferientage / Jahr (auto)</label>
+              <input type="text" id="emp-ferientage-auto" disabled value="—">
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="emp-anstellungsdatum">Anstellungsdatum</label>
+            <input type="date" id="emp-anstellungsdatum" required>
+          </div>
+
+          <div class="field">
+            <label>Abteilungen</label>
+            <div class="checkbox-row">
+              <label class="checkbox-pill"><input type="checkbox" value="Bäckerei" class="emp-abteilung-cb"> Bäckerei</label>
+              <label class="checkbox-pill"><input type="checkbox" value="Tearoom&Laden" class="emp-abteilung-cb"> Tearoom & Laden</label>
+              <label class="checkbox-pill"><input type="checkbox" value="Dorfladen" class="emp-abteilung-cb"> Dorfladen</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="emp-rolle">Rolle</label>
+            <select id="emp-rolle">
+              <option value="mitarbeiter">Mitarbeiter</option>
+              <option value="leitung">Leitung</option>
+            </select>
+          </div>
+
+          <div class="error-text" id="employee-error"></div>
+
+          <button type="submit" class="btn btn-primary" id="employee-save-btn" style="width:100%;">Mitarbeitenden erstellen</button>
+        </form>
+      </div>
     </div>
 
     <div class="subpanel" id="sub-auswertung">
-      <div class="placeholder-box">Live-Status, Monats- &amp; Jahresübersicht folgen in einem der nächsten Bauabschnitte.</div>
+      <div class="subtabs" id="auswertung-subtabs">
+        <button data-auswsub="live" class="active">Live-Status</button>
+        <button data-auswsub="monat">Monatsübersicht</button>
+        <button data-auswsub="jahr">Jahr</button>
+      </div>
+
+      <div class="abw-subpanel active" id="ausw-sub-live">
+        <div class="field" style="max-width:260px;">
+          <label for="live-abteilung-select">Abteilung</label>
+          <select id="live-abteilung-select">
+            <option value="alle">Alle</option>
+            <option value="Bäckerei">Bäckerei</option>
+            <option value="Tearoom&Laden">Tearoom & Laden</option>
+            <option value="Dorfladen">Dorfladen</option>
+          </select>
+        </div>
+        <div id="live-status-list"></div>
+      </div>
+
+      <div class="abw-subpanel" id="ausw-sub-monat">
+        <div class="card form-card">
+          <div class="form-row-2">
+            <div class="field"><label for="uebersicht-von">Von</label><input type="date" id="uebersicht-von"></div>
+            <div class="field"><label for="uebersicht-bis">Bis</label><input type="date" id="uebersicht-bis"></div>
+          </div>
+          <div class="form-row-2">
+            <div class="field">
+              <label for="uebersicht-abteilung">Abteilung</label>
+              <select id="uebersicht-abteilung">
+                <option value="alle">Alle</option>
+                <option value="Bäckerei">Bäckerei</option>
+                <option value="Tearoom&Laden">Tearoom & Laden</option>
+                <option value="Dorfladen">Dorfladen</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="uebersicht-mitarbeiter">Mitarbeiter</label>
+              <select id="uebersicht-mitarbeiter"><option value="alle">Alle</option></select>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="uebersicht-filter-btn" style="width:100%;">Filtern</button>
+        </div>
+        <div id="uebersicht-results"></div>
+      </div>
+
+      <div class="abw-subpanel" id="ausw-sub-jahr">
+        <div class="card form-card">
+          <div class="form-row-2">
+            <div class="field">
+              <label for="jahr-select">Jahr</label>
+              <select id="jahr-select"></select>
+            </div>
+            <div class="field">
+              <label for="jahr-abteilung">Abteilung</label>
+              <select id="jahr-abteilung">
+                <option value="alle">Alle</option>
+                <option value="Bäckerei">Bäckerei</option>
+                <option value="Tearoom&Laden">Tearoom & Laden</option>
+                <option value="Dorfladen">Dorfladen</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="jahr-mitarbeiter">Mitarbeiter</label>
+            <select id="jahr-mitarbeiter"><option value="alle">Alle</option></select>
+          </div>
+          <button class="btn btn-primary" id="jahr-filter-btn" style="width:100%;">Filtern</button>
+        </div>
+        <button class="btn btn-secondary" id="jahr-pdf-btn" style="width:100%; margin-bottom:16px;">📄 Jahresüberblick als PDF (alle Mitarbeiter)</button>
+        <div id="jahr-results"></div>
+      </div>
     </div>
 
     <div class="subpanel" id="sub-abwesenheiten">
@@ -450,7 +765,12 @@
     </div>
 
     <div class="subpanel" id="sub-planung">
-      <div class="placeholder-box">Die Arbeitsplan-Erstellung folgt in einem der nächsten Bauabschnitte.</div>
+      <div class="month-nav">
+        <button id="woche-prev-admin" class="month-nav-btn">‹</button>
+        <span class="month-label" id="woche-label-admin">–</span>
+        <button id="woche-next-admin" class="month-nav-btn">›</button>
+      </div>
+      <div id="planung-content"></div>
     </div>
 
     <div class="subpanel" id="sub-einstellungen">
@@ -482,75 +802,66 @@
 </main>
 
 <!-- Modal: Mitarbeiter anlegen/bearbeiten -->
-<div class="modal-backdrop" id="employee-modal">
+<!-- Modal: Schicht eintragen/bearbeiten -->
+<div class="modal-backdrop" id="shift-modal">
   <div class="modal-sheet">
-    <h3 id="employee-modal-title">Mitarbeiter anlegen</h3>
-    <form id="employee-form">
+    <h3 id="shift-modal-title">Schicht eintragen</h3>
+    <form id="shift-form">
       <div class="field">
-        <label for="emp-name">Name</label>
-        <input type="text" id="emp-name" required>
-      </div>
-      <div class="form-row-2">
-        <div class="field">
-          <label for="emp-personalnummer">Personalnummer</label>
-          <input type="text" id="emp-personalnummer" required>
-        </div>
-        <div class="field">
-          <label for="emp-abteilung">Abteilung</label>
-          <select id="emp-abteilung" required>
-            <option value="Bäckerei">Bäckerei</option>
-            <option value="Tearoom&Laden">Tearoom & Laden</option>
-            <option value="Dorfladen">Dorfladen</option>
-          </select>
-        </div>
+        <label for="shift-mitarbeiter">Mitarbeitende/r</label>
+        <select id="shift-mitarbeiter" required></select>
       </div>
       <div class="field">
-        <label for="emp-email">E-Mail</label>
-        <input type="email" id="emp-email" required>
-      </div>
-      <div class="field" id="emp-password-field">
-        <label for="emp-password">Temporäres Passwort</label>
-        <input type="text" id="emp-password" minlength="6">
-        <span class="hint-text">Der Mitarbeiter muss es beim ersten Login selbst ändern.</span>
-      </div>
-      <div class="form-row-2">
-        <div class="field">
-          <label for="emp-anstellungsart">Anstellungsart</label>
-          <select id="emp-anstellungsart">
-            <option value="festangestellt">Festangestellt</option>
-            <option value="stundenlohn">Stundenlöhner</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="emp-rolle">Rolle</label>
-          <select id="emp-rolle">
-            <option value="mitarbeiter">Mitarbeiter</option>
-            <option value="leitung">Leitung</option>
-          </select>
-        </div>
+        <label for="shift-abteilung">Abteilung</label>
+        <select id="shift-abteilung" required>
+          <option value="Bäckerei">Bäckerei</option>
+          <option value="Tearoom&Laden">Tearoom & Laden</option>
+          <option value="Dorfladen">Dorfladen</option>
+        </select>
       </div>
       <div class="form-row-2">
-        <div class="field">
-          <label for="emp-stellenprozent">Stellenprozent</label>
-          <input type="number" id="emp-stellenprozent" min="1" max="100" value="100">
-        </div>
-        <div class="field">
-          <label for="emp-arbeitstage">Arbeitstage / Woche</label>
-          <input type="number" id="emp-arbeitstage" min="1" max="7" value="5">
-        </div>
+        <div class="field"><label for="shift-von">Von</label><input type="time" id="shift-von" required></div>
+        <div class="field"><label for="shift-bis">Bis</label><input type="time" id="shift-bis" required></div>
       </div>
       <div class="field">
-        <label for="emp-anstellungsdatum">Anstellungsdatum</label>
-        <input type="date" id="emp-anstellungsdatum" required>
+        <label for="shift-bemerkung">Bemerkung (optional)</label>
+        <input type="text" id="shift-bemerkung" placeholder="z.B. Vertretung">
       </div>
-
-      <div class="error-text" id="employee-error"></div>
-
+      <div class="error-text" id="shift-error"></div>
       <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" id="employee-cancel-btn">Abbrechen</button>
-        <button type="submit" class="btn btn-primary" id="employee-save-btn">Speichern</button>
+        <button type="button" class="btn btn-secondary" id="shift-cancel-btn">Abbrechen</button>
+        <button type="submit" class="btn btn-primary" id="shift-save-btn">Speichern</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Modal: Mitarbeiter-Detail (Übersicht) -->
+<div class="modal-backdrop" id="detail-modal">
+  <div class="modal-sheet">
+    <h3 id="detail-modal-title">Mitarbeiter</h3>
+    <button class="btn btn-primary" id="detail-add-manual-btn" style="width:100%; margin-bottom:16px;">+ Eintrag manuell hinzufügen</button>
+
+    <div id="detail-manual-form" style="display:none; margin-bottom:18px;">
+      <div class="field"><label for="manual-datum">Datum</label><input type="date" id="manual-datum"></div>
+      <div class="form-row-2">
+        <div class="field"><label for="manual-von">Von</label><input type="time" id="manual-von"></div>
+        <div class="field"><label for="manual-bis">Bis</label><input type="time" id="manual-bis"></div>
+      </div>
+      <div class="form-row-2">
+        <div class="field"><label for="manual-pause-von">Pause von (optional)</label><input type="time" id="manual-pause-von"></div>
+        <div class="field"><label for="manual-pause-bis">Pause bis (optional)</label><input type="time" id="manual-pause-bis"></div>
+      </div>
+      <div class="error-text" id="manual-error"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="manual-cancel-btn">Abbrechen</button>
+        <button type="button" class="btn btn-primary" id="manual-save-btn">Speichern</button>
+      </div>
+    </div>
+
+    <div id="detail-shift-list"></div>
+
+    <button class="btn btn-secondary" id="detail-close-btn" style="width:100%; margin-top:16px;">Schliessen</button>
   </div>
 </div>
 

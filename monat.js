@@ -49,11 +49,6 @@ export function initMonatTab(session) {
     gleitzeitValue.textContent = "…";
     dayListEl.innerHTML = '<div class="hint-text">Lädt …</div>';
 
-    const isStundenlohn = profile.anstellungsart === "stundenlohn";
-    document.getElementById("soll-card").style.display = isStundenlohn ? "none" : "block";
-    document.getElementById("diff-card").style.display = isStundenlohn ? "none" : "block";
-    document.getElementById("gleitzeit-card").style.display = isStundenlohn ? "none" : "block";
-
     const [generalSnap, feiertageSnap] = await Promise.all([
       getDoc(doc(db, "settings", "general")),
       getDoc(doc(db, "settings", "feiertage")),
@@ -69,12 +64,10 @@ export function initMonatTab(session) {
     const { totalMinutes: istMinuten, perDay } = await calculateIstForMonth(uid, viewYear, viewMonth);
     const diffMinuten = istMinuten - sollMinuten;
 
-    if (!isStundenlohn) {
-      sollEl.textContent = formatMinutes(sollMinuten);
-      diffEl.textContent = (diffMinuten >= 0 ? "+" : "") + formatMinutes(diffMinuten);
-      diffEl.className = "summary-value " + (diffMinuten >= 0 ? "positive" : "negative");
-    }
+    sollEl.textContent = formatMinutes(sollMinuten);
     istEl.textContent = formatMinutes(istMinuten);
+    diffEl.textContent = (diffMinuten >= 0 ? "+" : "") + formatMinutes(diffMinuten);
+    diffEl.className = "summary-value " + (diffMinuten >= 0 ? "positive" : "negative");
 
     const ferienDatesThisMonth = new Set(
       [...absenceDates.ferienDates].filter((iso) => iso.startsWith(`${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`))
@@ -90,14 +83,14 @@ export function initMonatTab(session) {
     const ferienSaldo = ferienanspruch - ferienBezogenTotal;
     feriensaldoValue.textContent = `${ferienSaldo.toFixed(1)} Tage`;
 
-    // Gleitzeitkonto (kumuliert ab Anstellungsdatum) – nur für Festangestellte relevant
-    if (!isStundenlohn && profile.anstellungsdatum) {
+    // Gleitzeitkonto (kumuliert ab Anstellungsdatum)
+    if (profile.anstellungsdatum) {
       const startDate = new Date(profile.anstellungsdatum);
       gleitzeitLabel.textContent = `Gleitzeitkonto (ab ${startDate.toLocaleDateString("de-CH")})`;
       const gleitzeitMinuten = await calculateGleitzeitkonto(uid, profile, general, feiertagDates, startDate, absenceDates);
       gleitzeitValue.textContent = (gleitzeitMinuten >= 0 ? "+" : "") + formatMinutes(gleitzeitMinuten);
       gleitzeitValue.className = "balance-value " + (gleitzeitMinuten >= 0 ? "positive" : "negative");
-    } else if (!isStundenlohn) {
+    } else {
       gleitzeitValue.textContent = "–";
     }
 
@@ -117,6 +110,7 @@ export function initMonatTab(session) {
       const isToday = iso === todayISO;
 
       if (dayData && dayData.shifts.length > 0) {
+        const abteilungen = Array.isArray(profile.abteilungen) ? profile.abteilungen : (profile.abteilung ? [profile.abteilung] : []);
         const shiftTexts = dayData.shifts.map((s) => {
           const start = formatTime(s.start);
           const end = s.ende ? formatTime(s.ende) : "läuft";
@@ -126,7 +120,7 @@ export function initMonatTab(session) {
               : "";
           return `${start}${pausenText}–${end}`;
         });
-        const subLines = `[${profile.abteilung || "–"}] ${shiftTexts.join(" · ")}`;
+        const subLines = `[${abteilungen.join(", ") || "–"}] ${shiftTexts.join(" · ")}`;
         rows.push(`
           <div class="day-row has-hours${isToday ? " is-today" : ""}">
             <div>
