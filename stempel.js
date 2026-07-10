@@ -17,6 +17,40 @@ export function initStempelTab(session) {
   const pauseSinceEl = document.getElementById("status-pause-since");
   const actionsEl = document.getElementById("stempel-actions");
   const shiftList = document.getElementById("today-shift-list");
+  const errorEl = document.getElementById("stempel-error");
+
+  const confirmModal = document.getElementById("stempel-confirm-modal");
+  const confirmTitle = document.getElementById("stempel-confirm-title");
+  const confirmText = document.getElementById("stempel-confirm-text");
+  const confirmOkBtn = document.getElementById("stempel-confirm-ok");
+  const confirmCancelBtn = document.getElementById("stempel-confirm-cancel");
+
+  const confirmMessages = {
+    kommen: { title: "Einstempeln", text: "Möchtest du dich jetzt einstempeln?", ok: "Einstempeln" },
+    gehen: { title: "Ausstempeln", text: "Möchtest du dich jetzt ausstempeln?", ok: "Ausstempeln" },
+  };
+
+  function askConfirm(action) {
+    return new Promise((resolve) => {
+      const msg = confirmMessages[action];
+      confirmTitle.textContent = msg.title;
+      confirmText.textContent = msg.text;
+      confirmOkBtn.textContent = msg.ok;
+      confirmModal.classList.add("active");
+
+      function cleanup(result) {
+        confirmModal.classList.remove("active");
+        confirmOkBtn.removeEventListener("click", onOk);
+        confirmCancelBtn.removeEventListener("click", onCancel);
+        resolve(result);
+      }
+      function onOk() { cleanup(true); }
+      function onCancel() { cleanup(false); }
+
+      confirmOkBtn.addEventListener("click", onOk);
+      confirmCancelBtn.addEventListener("click", onCancel);
+    });
+  }
 
   abteilungEl.textContent = abteilung;
 
@@ -46,6 +80,11 @@ export function initStempelTab(session) {
   }
 
   async function handleAction(action) {
+    if (action === "kommen" || action === "gehen") {
+      const confirmed = await askConfirm(action);
+      if (!confirmed) return;
+    }
+
     const now = new Date().toISOString();
     const status = getStatus(currentShifts);
 
@@ -59,13 +98,16 @@ export function initStempelTab(session) {
       status.shift.ende = now;
     }
 
+    errorEl.textContent = "";
     setActionsDisabled(true);
     try {
       await saveToday();
       render();
     } catch (err) {
       console.error(err);
-      alert("Speichern fehlgeschlagen. Bitte erneut versuchen.");
+      errorEl.textContent = "Speichern fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.";
+      // Änderung rückgängig machen, da sie nicht gespeichert werden konnte
+      await loadToday();
     } finally {
       setActionsDisabled(false);
     }
@@ -85,7 +127,7 @@ export function initStempelTab(session) {
     if (status.state === "idle") {
       dotEl.classList.add("dot-idle");
       labelEl.textContent = "Nicht eingestempelt";
-      actionsEl.innerHTML = `<button class="btn btn-primary" data-action="kommen">Kommen</button>`;
+      actionsEl.innerHTML = `<button class="btn btn-primary" data-action="kommen">Einstempeln</button>`;
     } else if (status.state === "working") {
       dotEl.classList.add("dot-working");
       labelEl.textContent = "Eingestempelt";
@@ -93,7 +135,7 @@ export function initStempelTab(session) {
       kommenEl.textContent = formatTime(status.shift.start);
       actionsEl.innerHTML = `
         <button class="btn btn-yellow-outline" data-action="pause">⏸ Pause</button>
-        <button class="btn btn-danger-solid" data-action="gehen">✕ Gehen</button>
+        <button class="btn btn-danger-solid" data-action="gehen">✕ Ausstempeln</button>
       `;
     } else if (status.state === "onbreak") {
       dotEl.classList.add("dot-break");

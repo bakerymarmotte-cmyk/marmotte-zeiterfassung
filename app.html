@@ -474,6 +474,7 @@
       </div>
 
       <div class="stempel-actions" id="stempel-actions"></div>
+      <div class="error-text" id="stempel-error"></div>
     </div>
 
     <h3 class="shift-list-title">Heutige Schichten</h3>
@@ -800,6 +801,18 @@
   </section>
 
 </main>
+
+<!-- Modal: Ein-/Ausstempeln bestätigen -->
+<div class="modal-backdrop" id="stempel-confirm-modal">
+  <div class="modal-sheet">
+    <h3 id="stempel-confirm-title">Bestätigen</h3>
+    <p id="stempel-confirm-text" style="color: var(--color-text-muted); margin: -10px 0 20px;"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" id="stempel-confirm-cancel">Abbrechen</button>
+      <button type="button" class="btn btn-primary" id="stempel-confirm-ok">Bestätigen</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal: Mitarbeiter anlegen/bearbeiten -->
 <!-- Modal: Schicht eintragen/bearbeiten -->
