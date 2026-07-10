@@ -24,12 +24,14 @@ let employeesCache = null;
 export function initArbeitsplanTab(session) {
   const myAbteilungen = getEmpAbteilungen(session.profile);
   const sichtbareAbteilungen = ABTEILUNGEN.filter((a) => myAbteilungen.includes(a));
+  const role = session.profile.role;
 
   setupWeekTab(session, {
     prevBtnId: "week-prev", nextBtnId: "week-next", labelId: "week-label",
     contentId: "arbeitsplan-content", editable: false,
     abteilungen: sichtbareAbteilungen.length > 0 ? sichtbareAbteilungen : ABTEILUNGEN,
     ownUid: session.uid,
+    canSeeAllBemerkungen: role === "admin" || role === "leitung",
   });
 }
 
@@ -37,6 +39,7 @@ export function initPlanungTab(session) {
   setupWeekTab(session, {
     prevBtnId: "woche-prev-admin", nextBtnId: "woche-next-admin", labelId: "woche-label-admin",
     contentId: "planung-content", editable: true, abteilungen: ABTEILUNGEN,
+    canSeeAllBemerkungen: true,
   });
   setupShiftModal(session);
 }
@@ -67,7 +70,7 @@ function setupWeekTab(session, cfg) {
       loadAbwesenheiten(weekStartISO, weekEndISO),
     ]);
 
-    const bemerkungenMap = await loadBemerkungen(shifts, cfg.editable, cfg.ownUid);
+    const bemerkungenMap = await loadBemerkungen(shifts, cfg.canSeeAllBemerkungen, cfg.ownUid);
 
     contentEl.innerHTML = "";
     for (const abteilung of cfg.abteilungen) {
@@ -182,8 +185,8 @@ function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, a
   return wrap;
 }
 
-async function loadBemerkungen(shifts, editable, ownUid) {
-  const relevantIds = editable
+async function loadBemerkungen(shifts, canSeeAll, ownUid) {
+  const relevantIds = canSeeAll
     ? shifts.map((s) => s.id)
     : shifts.filter((s) => ownUid && s.uid === ownUid).map((s) => s.id);
 
