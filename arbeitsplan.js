@@ -29,6 +29,7 @@ export function initArbeitsplanTab(session) {
     prevBtnId: "week-prev", nextBtnId: "week-next", labelId: "week-label",
     contentId: "arbeitsplan-content", editable: false,
     abteilungen: sichtbareAbteilungen.length > 0 ? sichtbareAbteilungen : ABTEILUNGEN,
+    ownUid: session.uid,
   });
 }
 
@@ -52,7 +53,7 @@ function setupWeekTab(session, cfg) {
   async function render() {
     const labelEl = document.getElementById(cfg.labelId);
     const contentEl = document.getElementById(cfg.contentId);
-    labelEl.textContent = formatWeekLabel(weekStart);
+    labelEl.innerHTML = formatWeekLabel(weekStart);
     contentEl.innerHTML = '<div class="hint-text">Lädt…</div>';
 
     const weekEnd = addDays(weekStart, 6);
@@ -68,7 +69,7 @@ function setupWeekTab(session, cfg) {
 
     contentEl.innerHTML = "";
     for (const abteilung of cfg.abteilungen) {
-      contentEl.appendChild(renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, abwesenheiten, cfg.editable));
+      contentEl.appendChild(renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, abwesenheiten, cfg.editable, cfg.ownUid));
     }
 
     if (cfg.editable) {
@@ -78,7 +79,7 @@ function setupWeekTab(session, cfg) {
   }
 }
 
-function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, abwesenheiten, editable) {
+function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, abwesenheiten, editable, ownUid) {
   const wrap = document.createElement("div");
   wrap.className = "abteilung-block";
 
@@ -144,7 +145,8 @@ function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, a
 
     dayShifts.forEach((s) => {
       const card = document.createElement("div");
-      card.className = "shift-card";
+      const isOwn = ownUid && s.uid === ownUid;
+      card.className = "shift-card" + (isOwn ? " own-shift" : "") + (isOwn && isToday ? " is-today-shift" : "");
       card.innerHTML = `
         <div class="shift-card-main">
           <div>
@@ -333,7 +335,7 @@ function formatWeekLabel(weekStart) {
   const kw = getISOWeekNumber(weekStart);
   const startStr = weekStart.toLocaleDateString("de-CH", { day: "numeric", month: "short" });
   const endStr = weekEnd.toLocaleDateString("de-CH", { day: "numeric", month: "short", year: "numeric" });
-  return `KW ${kw} · ${startStr} – ${endStr}`;
+  return `<span class="week-kw">KW ${kw}</span><span class="week-dates">${startStr} – ${endStr}</span>`;
 }
 
 function getISOWeekNumber(date) {

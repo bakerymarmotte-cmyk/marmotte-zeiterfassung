@@ -210,6 +210,8 @@
   }
   .month-nav-btn:hover { border-color: var(--color-yellow); color: var(--color-yellow); }
   .month-label { font-family: var(--font-display); font-weight: 700; font-size: 17px; min-width: 160px; text-align: center; }
+  .month-label .week-kw { display: block; }
+  .month-label .week-dates { display: block; font-size: 12.5px; font-weight: 500; color: var(--color-text-muted); margin-top: 2px; }
 
   .month-summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .summary-card {
@@ -296,6 +298,14 @@
   .shift-card {
     background: var(--color-surface); border: 1px solid var(--color-border);
     border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 8px;
+  }
+  .shift-card.own-shift {
+    border-color: var(--color-yellow);
+    background: rgba(253, 214, 0, 0.08);
+  }
+  .shift-card.own-shift.is-today-shift {
+    background: rgba(253, 214, 0, 0.2);
+    box-shadow: 0 0 0 1px var(--color-yellow);
   }
   .shift-card-main { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
   .shift-card-time { font-family: var(--font-mono); font-size: 13px; color: var(--color-yellow); margin-top: 2px; }
