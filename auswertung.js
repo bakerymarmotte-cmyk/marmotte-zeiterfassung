@@ -293,7 +293,7 @@ async function computeEmployeeReport(emp, vonISO, bisISO, allFerien, allAbw) {
     });
     istMinuten += dayMinutes;
 
-    if (!isStundenlohn && !isWeekend && !isFeiertag && !ferienHit && !abwHit) {
+    if (!isStundenlohn && !isWeekend && !isFeiertag && !ferienHit && !abwHit && isEmployedOn(iso, emp)) {
       sollMinuten += tagessollMinuten;
     }
     if (ferienHit && !isWeekend && !isFeiertag) ferienBezogenDays++;
@@ -304,17 +304,8 @@ async function computeEmployeeReport(emp, vonISO, bisISO, allFerien, allAbw) {
 
   const diffMinuten = istMinuten - sollMinuten;
 
-  const year = start.getFullYear();
-  const yearStartISO = `${year}-01-01`;
-  const ferienVorPeriode = myFerien
-    .flatMap((f) => expandRange(f.von, f.bis))
-    .filter((iso) => iso >= yearStartISO && iso < vonISO)
-    .filter((iso) => {
-      const dd = new Date(iso);
-      return dd.getDay() !== 0 && dd.getDay() !== 6 && !uebersichtFeiertage.has(iso);
-    }).length;
-  const ferienanspruch = (uebersichtGeneral.ferientageProJahr || 25) * (stellenprozent / 100);
-  const feriensaldoStart = ferienanspruch - ferienVorPeriode;
+  const ferienDatesAll = myFerien.flatMap((f) => expandRange(f.von, f.bis));
+  const feriensaldoStart = calculateFeriensaldoBis(emp, uebersichtGeneral, uebersichtFeiertage, ferienDatesAll, vonISO);
   const feriensaldoEnde = feriensaldoStart - ferienBezogenDays;
 
   return { sollMinuten, istMinuten, diffMinuten, ferienBezogenDays, abwesenheitenCounts, dailyRows, feriensaldoStart, feriensaldoEnde, isStundenlohn };
@@ -325,6 +316,68 @@ function expandRange(von, bis) {
   if (!von || !bis) return result;
   for (let d = new Date(von); toISODate(d) <= bis; d.setDate(d.getDate() + 1)) result.push(toISODate(d));
   return result;
+}
+
+// Prüft, ob ein Datum (YYYY-MM-DD) innerhalb der Anstellungsdauer liegt
+// (Anstellungs-/Kündigungsdatum sind ebenfalls YYYY-MM-DD-Strings, daher reicht String-Vergleich).
+function isEmployedOn(iso, emp) {
+  if (emp.anstellungsdatum && iso < emp.anstellungsdatum) return false;
+  if (emp.kuendigungsdatum && iso > emp.kuendigungsdatum) return false;
+  return true;
+}
+
+// Zählt Wochentage (Mo–Fr) ohne Feiertage aus einer Liste von ISO-Daten – optional
+// nur bis zu einem bestimmten Datum (inklusive).
+function countFerientageDays(isoList, feiertagDates, upToISO) {
+  let count = 0;
+  for (const iso of isoList) {
+    if (upToISO && iso > upToISO) continue;
+    const d = new Date(iso);
+    const weekday = d.getDay();
+    if (weekday === 0 || weekday === 6) continue;
+    if (feiertagDates.has(iso)) continue;
+    count++;
+  }
+  return count;
+}
+
+// Feriensaldo unmittelbar VOR beforeDateISO — gleiche Logik wie im Monat-Tab:
+// voller anteiliger Jahresanspruch ab Anstellung (gekürzt durch Kündigungsdatum),
+// abzüglich bereits bezogener Tage. Vollständig vergangene Jahre werden komplett
+// gerechnet, im Zieljahr nur die Tage vor beforeDateISO.
+function calculateFeriensaldoBis(profile, general, feiertagDates, ferienDatesAll, beforeDateISO) {
+  const anstellungsdatum = profile.anstellungsdatum ? new Date(profile.anstellungsdatum) : null;
+  const kuendigungsdatum = profile.kuendigungsdatum ? new Date(profile.kuendigungsdatum) : null;
+  const stellenprozent = profile.stellenprozent || 100;
+  const ferientageProJahr = general.ferientageProJahr || 25;
+  const beforeDate = new Date(beforeDateISO);
+
+  const startYear = anstellungsdatum ? anstellungsdatum.getFullYear() : beforeDate.getFullYear();
+  const endYear = beforeDate.getFullYear();
+
+  let saldo = 0;
+  for (let y = startYear; y <= endYear; y++) {
+    const yearStart = new Date(y, 0, 1);
+    const yearEnd = new Date(y, 11, 31);
+
+    let rangeStart = yearStart;
+    if (anstellungsdatum && anstellungsdatum > rangeStart) rangeStart = anstellungsdatum;
+    let rangeEnd = yearEnd;
+    if (kuendigungsdatum && kuendigungsdatum < rangeEnd) rangeEnd = kuendigungsdatum;
+
+    if (rangeStart > rangeEnd) continue;
+
+    const totalDaysInYear = Math.round((yearEnd - yearStart) / 86400000) + 1;
+    const employedDays = Math.round((rangeEnd - rangeStart) / 86400000) + 1;
+    const anspruchJahr = ferientageProJahr * (stellenprozent / 100) * (employedDays / totalDaysInYear);
+
+    const ferienDatesInYear = ferienDatesAll.filter((iso) => iso.startsWith(`${y}-`));
+    const upTo = y === endYear ? toISODate(new Date(beforeDate.getTime() - 86400000)) : undefined;
+    const bezogenJahr = countFerientageDays(ferienDatesInYear, feiertagDates, upTo);
+
+    saldo += anspruchJahr - bezogenJahr;
+  }
+  return saldo;
 }
 
 const abwLabelsShort = { krank: "Krank", unfall: "Unfall", militaer: "Militär", schwangerschaft: "Schwang.", bezahlter_frei_tag: "Frei Tag" };
@@ -662,7 +715,7 @@ async function computeYearlyBreakdown(emp, year, allFerien, allAbw) {
     monthlyIst[month] += dayMinutes;
     jahresIst += dayMinutes;
 
-    if (!isStundenlohn && !isWeekend && !isFeiertag && !ferienHit && !abwHit) jahresSoll += tagessollMinuten;
+    if (!isStundenlohn && !isWeekend && !isFeiertag && !ferienHit && !abwHit && isEmployedOn(iso, emp)) jahresSoll += tagessollMinuten;
     if (abwHit) abwesenheitenCounts[abwHit.typ] = (abwesenheitenCounts[abwHit.typ] || 0) + 1;
     if (ferienHit && !isWeekend && !isFeiertag) abwesenheitenCounts.ferien = (abwesenheitenCounts.ferien || 0) + 1;
   }
