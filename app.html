@@ -156,6 +156,11 @@
   .holiday-row .date { font-family: var(--font-mono); color: var(--color-yellow); font-size: 13px; min-width: 88px; }
   .holiday-row .remove-btn { background: none; border: none; color: var(--color-text-muted); font-size: 18px; }
   .holiday-row .remove-btn:hover { color: var(--color-danger); }
+  .holiday-year-heading {
+    font-size: 12px; font-weight: 700; color: var(--color-yellow); text-transform: uppercase;
+    letter-spacing: 0.04em; margin: 16px 0 4px;
+  }
+  .holiday-year-heading:first-child { margin-top: 0; }
 
   .feriensperre-row {
     display: flex; align-items: center; justify-content: space-between;
@@ -831,16 +836,6 @@
       </div>
 
       <div class="settings-card">
-        <h4>Feiertage Kanton Bern</h4>
-        <div id="holiday-list"></div>
-        <div class="inline-add-row">
-          <div class="field"><input type="date" id="new-holiday-date"></div>
-          <div class="field"><input type="text" id="new-holiday-name" placeholder="Bezeichnung"></div>
-        </div>
-        <button class="btn btn-secondary" id="add-holiday-btn" style="width:100%; margin: 10px 0 18px;">Feiertag hinzufügen</button>
-      </div>
-
-      <div class="settings-card">
         <h4>Ferien-Sperrzeiträume</h4>
         <span class="hint-text" style="display:block; margin-bottom:12px;">In diesen Zeiträumen können Mitarbeitende keine Ferien beantragen (z.B. Hochsaison). Frei-Wünsche sind davon nicht betroffen. Admin/Leitung sind ausgenommen.</span>
         <div id="feriensperre-list"></div>
@@ -850,6 +845,16 @@
           <div class="field"><label for="new-feriensperre-name">Bezeichnung</label><input type="text" id="new-feriensperre-name" placeholder="z.B. Weihnachtsgeschäft"></div>
         </div>
         <button class="btn btn-secondary" id="add-feriensperre-btn" style="width:100%; margin: 10px 0 18px;">Sperrzeitraum hinzufügen</button>
+      </div>
+
+      <div class="settings-card">
+        <h4>Feiertage Kanton Bern</h4>
+        <div id="holiday-list"></div>
+        <div class="inline-add-row">
+          <div class="field"><input type="date" id="new-holiday-date"></div>
+          <div class="field"><input type="text" id="new-holiday-name" placeholder="Bezeichnung"></div>
+        </div>
+        <button class="btn btn-secondary" id="add-holiday-btn" style="width:100%; margin: 10px 0 18px;">Feiertag hinzufügen</button>
       </div>
     </div>
   </section>

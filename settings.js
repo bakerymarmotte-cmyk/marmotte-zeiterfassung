@@ -63,16 +63,23 @@ export function initSettingsTab(session) {
       container.innerHTML = '<div class="hint-text">Keine Feiertage hinterlegt.</div>';
       return;
     }
-    container.innerHTML = sorted
-      .map(
-        (h) => `
+
+    let html = "";
+    let currentYear = null;
+    for (const h of sorted) {
+      const year = h.date.slice(0, 4);
+      if (year !== currentYear) {
+        html += `<div class="holiday-year-heading">${year}</div>`;
+        currentYear = year;
+      }
+      html += `
       <div class="holiday-row" data-date="${h.date}">
         <span class="date">${formatDate(h.date)}</span>
         <span style="flex:1; margin-left:12px;">${escapeHtml(h.name)}</span>
         <button class="remove-btn" data-remove="${h.date}|${escapeAttr(h.name)}">✕</button>
-      </div>`
-      )
-      .join("");
+      </div>`;
+    }
+    container.innerHTML = html;
 
     container.querySelectorAll("[data-remove]").forEach((btn) => {
       btn.addEventListener("click", async () => {
