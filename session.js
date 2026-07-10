@@ -27,6 +27,12 @@ export function requireSession() {
           return;
         }
         const profile = snap.data();
+        if (profile.active === false) {
+          await signOut(auth);
+          window.location.href = "index.html";
+          reject(new Error("account-deactivated"));
+          return;
+        }
         if (profile.mustChangePassword) {
           window.location.href = "change-password.html";
           reject(new Error("must-change-password"));

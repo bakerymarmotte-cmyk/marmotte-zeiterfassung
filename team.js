@@ -2,7 +2,7 @@ import { db } from "./firebase-config.js";
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signOut as signOutSecondary } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  collection, doc, getDoc, getDocs, setDoc, updateDoc, query, orderBy
+  collection, doc, getDoc, getDocs, setDoc, updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // Muss identisch zur Config in firebase-config.js sein (wird für den "Zweit-App"-Trick benötigt,
@@ -24,6 +24,9 @@ let generalSettings = { wochenstunden100: 42, ferientageProJahr: 25 };
 
 export function initTeamTab(session) {
   const listEl = document.getElementById("employee-list");
+  const listInactiveEl = document.getElementById("employee-list-inactive");
+  const listInactiveWrap = document.getElementById("employee-list-inactive-wrap");
+  const filterBtns = document.querySelectorAll("#team-abteilung-filter button");
   const subnavBtns = document.querySelectorAll("#team-subnav button");
   const listView = document.getElementById("team-list-view");
   const formView = document.getElementById("team-form-view");
@@ -35,9 +38,23 @@ export function initTeamTab(session) {
   const stellenprozentEl = document.getElementById("emp-stellenprozent");
   const anstellungsartRadios = document.querySelectorAll('input[name="emp-anstellungsart"]');
   const wochenstundenField = document.getElementById("emp-wochenstunden-field");
+  const kuendigungsdatumField = document.getElementById("emp-kuendigungsdatum-field");
+  const toggleActiveBtn = document.getElementById("employee-toggle-active-btn");
+
+  let currentFilter = "alle";
+  let currentActive = true;
 
   loadGeneralSettings();
   loadEmployees();
+
+  filterBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      filterBtns.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentFilter = btn.dataset.filter;
+      loadEmployees();
+    });
+  });
 
   subnavBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -78,6 +95,10 @@ export function initTeamTab(session) {
       arbeitstageProWoche: Number(document.getElementById("emp-arbeitstage").value),
       anstellungsdatum: document.getElementById("emp-anstellungsdatum").value,
     };
+
+    if (editingUid) {
+      data.kuendigungsdatum = document.getElementById("emp-kuendigungsdatum").value || "";
+    }
 
     if (abteilungen.length === 0) {
       errorEl.textContent = "Bitte mindestens eine Abteilung auswählen.";
@@ -135,34 +156,57 @@ export function initTeamTab(session) {
 
   async function loadEmployees() {
     listEl.innerHTML = '<div class="hint-text">Lädt…</div>';
-    const q = query(collection(db, "users"), orderBy("name"));
-    const snap = await getDocs(q);
-    listEl.innerHTML = "";
-    if (snap.empty) {
-      listEl.innerHTML = '<div class="hint-text">Noch keine Mitarbeiter angelegt.</div>';
-      return;
+    listInactiveEl.innerHTML = "";
+    const snap = await getDocs(collection(db, "users"));
+
+    let all = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+
+    if (currentFilter !== "alle") {
+      all = all.filter((u) => getAbteilungen(u).includes(currentFilter));
     }
-    snap.forEach((docSnap) => {
-      const u = docSnap.data();
-      const abteilungen = getAbteilungen(u);
-      const item = document.createElement("div");
-      item.className = "employee-item";
-      item.innerHTML = `
-        <div class="info">
-          <div class="name">${escapeHtml(u.name || "(ohne Name)")}</div>
-          <div class="meta">${escapeHtml(abteilungen.join(", ") || "–")} · ${escapeHtml(u.personalnummer || "–")}</div>
-        </div>
-        <span class="badge role-${u.role || "mitarbeiter"}">${roleLabels[u.role] || u.role || ""}</span>
-      `;
-      item.addEventListener("click", () => {
-        showForm(docSnap.id, u);
-        listView.style.display = "none";
-        formView.style.display = "block";
-        subnavBtns.forEach((b) => b.classList.remove("active"));
-        subnavBtns[1].classList.add("active");
-      });
-      listEl.appendChild(item);
+
+    // Sortierung nach Personalnummer (numerisch, falls möglich, sonst alphabetisch)
+    all.sort((a, b) => {
+      const pa = a.personalnummer || "";
+      const pb = b.personalnummer || "";
+      const na = Number(pa), nb = Number(pb);
+      if (!isNaN(na) && !isNaN(nb) && pa !== "" && pb !== "") return na - nb;
+      return pa.localeCompare(pb);
     });
+
+    const active = all.filter((u) => u.active !== false);
+    const inactive = all.filter((u) => u.active === false);
+
+    listEl.innerHTML = "";
+    if (active.length === 0) {
+      listEl.innerHTML = '<div class="hint-text">Keine aktiven Mitarbeiter in dieser Auswahl.</div>';
+    } else {
+      active.forEach((u) => listEl.appendChild(renderEmployeeItem(u)));
+    }
+
+    listInactiveWrap.style.display = inactive.length > 0 ? "block" : "none";
+    inactive.forEach((u) => listInactiveEl.appendChild(renderEmployeeItem(u)));
+  }
+
+  function renderEmployeeItem(u) {
+    const abteilungen = getAbteilungen(u);
+    const item = document.createElement("div");
+    item.className = "employee-item" + (u.active === false ? " is-inactive" : "");
+    item.innerHTML = `
+      <div class="item-line1">[${escapeHtml(u.personalnummer || "–")}] ${escapeHtml(u.name || "(ohne Name)")}</div>
+      <div class="item-line2">
+        <span class="item-abteilung">${escapeHtml(abteilungen.join(", ") || "–")}</span>
+        <span class="badge role-${u.role || "mitarbeiter"}">${roleLabels[u.role] || u.role || ""}</span>
+      </div>
+    `;
+    item.addEventListener("click", () => {
+      showForm(u.uid, u);
+      listView.style.display = "none";
+      formView.style.display = "block";
+      subnavBtns.forEach((b) => b.classList.remove("active"));
+      subnavBtns[1].classList.add("active");
+    });
+    return item;
   }
 
   function showForm(uid, data) {
@@ -172,6 +216,7 @@ export function initTeamTab(session) {
     document.querySelectorAll(".emp-abteilung-cb").forEach((cb) => (cb.checked = false));
 
     if (uid && data) {
+      currentActive = data.active !== false;
       formTitle.textContent = "Mitarbeiter bearbeiten";
       document.getElementById("emp-name").value = data.name || "";
       document.getElementById("emp-personalnummer").value = data.personalnummer || "";
@@ -188,11 +233,41 @@ export function initTeamTab(session) {
         if (cb) cb.checked = true;
       });
       document.getElementById("employee-save-btn").textContent = "Speichern";
+
+      kuendigungsdatumField.style.display = "block";
+      document.getElementById("emp-kuendigungsdatum").value = data.kuendigungsdatum || "";
+
+      toggleActiveBtn.style.display = "block";
+      toggleActiveBtn.textContent = currentActive ? "Mitarbeitenden deaktivieren" : "Mitarbeitenden wieder aktivieren";
+      toggleActiveBtn.className = "btn " + (currentActive ? "btn-danger" : "btn-secondary");
+      toggleActiveBtn.style.width = "100%";
+      toggleActiveBtn.style.marginBottom = "10px";
+      toggleActiveBtn.onclick = async () => {
+        const action = currentActive ? "deaktivieren" : "wieder aktivieren";
+        if (!confirm(`Mitarbeitenden wirklich ${action}? ${currentActive ? "Der Zugang zur App wird gesperrt." : ""}`)) return;
+        toggleActiveBtn.disabled = true;
+        try {
+          await updateDoc(doc(db, "users", editingUid), { active: !currentActive });
+          listView.style.display = "block";
+          formView.style.display = "none";
+          subnavBtns.forEach((b) => b.classList.remove("active"));
+          subnavBtns[0].classList.add("active");
+          loadEmployees();
+        } catch (err) {
+          console.error(err);
+          errorEl.textContent = "Änderung fehlgeschlagen. Bitte erneut versuchen.";
+        } finally {
+          toggleActiveBtn.disabled = false;
+        }
+      };
     } else {
       formTitle.textContent = "Neuen Mitarbeitenden hinzufügen";
       emailField.disabled = false;
       passwordField.style.display = "flex";
       document.getElementById("employee-save-btn").textContent = "Mitarbeitenden erstellen";
+      kuendigungsdatumField.style.display = "none";
+      toggleActiveBtn.style.display = "none";
+      toggleActiveBtn.onclick = null;
     }
     updateAutoFields();
   }
@@ -215,6 +290,7 @@ async function createEmployeeAccount(data, password) {
     const cred = await createUserWithEmailAndPassword(secondaryAuth, data.email, password);
     await setDoc(doc(db, "users", cred.user.uid), {
       ...data,
+      active: true,
       mustChangePassword: true,
       createdAt: new Date().toISOString(),
     });

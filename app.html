@@ -91,18 +91,30 @@
   .employee-item {
     background: var(--color-surface); border: 1px solid var(--color-border);
     border-radius: var(--radius-md); padding: 14px 16px;
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
     cursor: pointer;
   }
   .employee-item:hover { border-color: var(--color-yellow); }
-  .employee-item .info .name { font-weight: 700; font-size: 15px; }
-  .employee-item .info .meta { font-size: 12.5px; color: var(--color-text-muted); margin-top: 2px; }
+  .employee-item .item-line1 { font-weight: 700; font-size: 15px; }
+  .employee-item .item-line2 {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 4px; gap: 10px;
+  }
+  .employee-item .item-abteilung { font-size: 12.5px; color: var(--color-text-muted); }
   .badge {
     font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
     padding: 3px 9px; border-radius: 999px; background: var(--color-surface-raised); color: var(--color-text-muted);
+    flex-shrink: 0;
   }
   .badge.role-admin { background: rgba(253,214,0,0.15); color: var(--color-yellow); }
   .badge.role-leitung { background: rgba(76,175,125,0.15); color: var(--color-success); }
+  .badge.role-mitarbeiter { background: rgba(74,159,224,0.15); color: #4A9FE0; }
+  .employee-item.is-inactive { opacity: 0.6; }
+  .team-filter-row { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 14px; }
+  .team-section-label {
+    font-size: 12.5px; color: var(--color-text-muted); text-transform: uppercase;
+    letter-spacing: 0.03em; font-weight: 700; margin: 20px 0 10px;
+  }
+  .team-section-label:first-child { margin-top: 0; }
 
   .fab {
     position: fixed; bottom: 24px; right: 20px;
@@ -566,7 +578,17 @@
       </div>
 
       <div id="team-list-view">
+        <div class="subtabs team-filter-row" id="team-abteilung-filter">
+          <button data-filter="alle" class="active">Alle</button>
+          <button data-filter="Bäckerei">Bäckerei</button>
+          <button data-filter="Tearoom&Laden">Tearoom & Laden</button>
+          <button data-filter="Dorfladen">Dorfladen</button>
+        </div>
         <div id="employee-list" class="employee-list"></div>
+        <div id="employee-list-inactive-wrap">
+          <div class="team-section-label">Inaktive Mitarbeitende</div>
+          <div id="employee-list-inactive" class="employee-list"></div>
+        </div>
       </div>
 
       <div id="team-form-view" style="display:none;">
@@ -620,9 +642,14 @@
             </div>
           </div>
 
-          <div class="field">
+          <div class="field" id="emp-anstellungsdatum-field">
             <label for="emp-anstellungsdatum">Anstellungsdatum</label>
             <input type="date" id="emp-anstellungsdatum" required>
+          </div>
+
+          <div class="field" id="emp-kuendigungsdatum-field" style="display:none;">
+            <label for="emp-kuendigungsdatum">Kündigungsdatum</label>
+            <input type="date" id="emp-kuendigungsdatum">
           </div>
 
           <div class="field">
@@ -644,6 +671,7 @@
 
           <div class="error-text" id="employee-error"></div>
 
+          <button type="button" class="btn btn-secondary" id="employee-toggle-active-btn" style="width:100%; display:none; margin-bottom:10px;"></button>
           <button type="submit" class="btn btn-primary" id="employee-save-btn" style="width:100%;">Mitarbeitenden erstellen</button>
         </form>
       </div>

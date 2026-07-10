@@ -140,7 +140,7 @@
 
 <script type="module">
   import { auth, db } from "./firebase-config.js";
-  import { signInWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { signInWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const form = document.getElementById("login-form");
@@ -180,6 +180,15 @@
       }
 
       const userData = userDoc.data();
+
+      if (userData.active === false) {
+        await signOut(auth);
+        errorText.textContent = "Dieses Konto wurde deaktiviert. Bitte wende dich an die Leitung oder den Admin.";
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Einloggen";
+        return;
+      }
+
       // Rolle merken, damit die nächste Seite weiss, welchen Bereich sie zeigen soll
       sessionStorage.setItem("marmotte_role", userData.role || "mitarbeiter");
       sessionStorage.setItem("marmotte_name", userData.name || "");
