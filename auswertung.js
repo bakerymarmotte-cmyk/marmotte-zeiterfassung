@@ -395,22 +395,23 @@ function renderEmployeeCard(emp, report, von, bis, showPdfButton = true, showDet
     .map(([typ, count]) => `<span>${abwIconsShort[typ] || ""} ${abwLabelsShort[typ] || typ} ${count}T</span>`)
     .join("");
 
-  const statsHtml = report.isStundenlohn
-    ? `<span>Gearbeitet <strong>${formatMinutes(report.istMinuten)}</strong></span><span>Ferien <strong>${report.ferienBezogenDays}T</strong></span>${abwStatsHtml}`
+  const mainStatsHtml = report.isStundenlohn
+    ? `<span>Gearbeitet <strong>${formatMinutes(report.istMinuten)}</strong></span><span>Ferien bezogen <strong>${report.ferienBezogenDays}T</strong></span>`
     : `<span>Soll <strong>${formatMinutes(report.sollMinuten)}</strong></span>
        <span>Ist <strong>${formatMinutes(report.istMinuten)}</strong></span>
        <span class="${report.diffMinuten < 0 ? "negative" : "positive"}">Diff <strong>${report.diffMinuten >= 0 ? "+" : ""}${formatMinutes(report.diffMinuten)}</strong></span>
-       <span>Ferien <strong>${report.ferienBezogenDays}T</strong></span>${abwStatsHtml}`;
+       <span>Ferien bezogen <strong>${report.ferienBezogenDays}T</strong></span>`;
 
   card.innerHTML = `
-    <div class="uebersicht-top">
+    <div class="uebersicht-body">
       <div class="uebersicht-name-row">[${escapeHtml(emp.personalnummer || "–")}] ${escapeHtml(emp.name || "")} ${slPill} ${pills}</div>
-      <div class="uebersicht-actions">
-        ${showDetailButton ? '<button class="btn btn-secondary" data-detail>Detail</button>' : ""}
-        ${showPdfButton ? '<button class="btn btn-primary" data-pdf>📄 PDF</button>' : ""}
-      </div>
+      <div class="uebersicht-stats">${mainStatsHtml}</div>
+      <div class="uebersicht-stats uebersicht-stats-abwesenheiten">${abwStatsHtml || '<span>Keine weiteren Abwesenheiten</span>'}</div>
     </div>
-    <div class="uebersicht-stats">${statsHtml}</div>
+    <div class="uebersicht-actions">
+      ${showDetailButton ? '<button class="btn btn-secondary" data-detail>Detail</button>' : ""}
+      ${showPdfButton ? '<button class="btn btn-primary" data-pdf>📄 PDF</button>' : ""}
+    </div>
   `;
 
   const detailBtn = card.querySelector("[data-detail]");

@@ -413,19 +413,21 @@
   .uebersicht-card {
     background: var(--color-surface); border: 1px solid var(--color-border);
     border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
   }
-  .uebersicht-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+  .uebersicht-body { flex: 1; min-width: 0; }
   .uebersicht-name-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-weight: 700; font-size: 14.5px; }
   .uebersicht-pill {
     font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
     background: var(--color-surface-raised); color: var(--color-text-muted); text-transform: uppercase;
   }
-  .uebersicht-actions { display: flex; gap: 8px; flex-shrink: 0; }
-  .uebersicht-actions .btn { padding: 8px 12px; font-size: 12.5px; }
+  .uebersicht-actions { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+  .uebersicht-actions .btn { padding: 8px 12px; font-size: 12.5px; white-space: nowrap; }
   .uebersicht-stats { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--color-text-muted); }
   .uebersicht-stats strong { color: var(--color-text); }
   .uebersicht-stats .negative strong { color: var(--color-danger); }
   .uebersicht-stats .positive strong { color: var(--color-success); }
+  .uebersicht-stats-abwesenheiten { margin-top: 6px; }
 
   .detail-shift-row {
     background: var(--color-surface-raised); border-radius: var(--radius-md);
