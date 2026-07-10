@@ -54,6 +54,38 @@
     font-size: 12.5px;
     margin-top: 22px;
   }
+  .forgot-link {
+    display: block;
+    text-align: center;
+    margin-top: 16px;
+    font-size: 13.5px;
+    color: var(--color-text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 4px;
+    width: 100%;
+  }
+  .forgot-link:hover { color: var(--color-yellow); }
+  #forgot-panel {
+    display: none;
+    text-align: left;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--color-border);
+  }
+  #forgot-panel.open { display: block; }
+  #forgot-panel p.sub {
+    color: var(--color-text-muted);
+    font-size: 13px;
+    margin: 0 0 14px;
+  }
+  .success-text {
+    color: var(--color-success);
+    font-size: 13.5px;
+    margin: 10px 0 0;
+  }
 </style>
 </head>
 <body>
@@ -85,13 +117,30 @@
           Einloggen
         </button>
       </form>
+
+      <button type="button" class="forgot-link" id="forgot-toggle">Passwort vergessen?</button>
+
+      <div id="forgot-panel">
+        <p class="sub">Gib deine E-Mail-Adresse ein. Wir senden dir einen Link zum Zurücksetzen deines Passworts.</p>
+        <form id="forgot-form">
+          <div class="field">
+            <label for="forgot-email">E-Mail</label>
+            <input type="email" id="forgot-email" required autocomplete="username">
+          </div>
+          <div class="error-text" id="forgot-error"></div>
+          <div class="success-text" id="forgot-success"></div>
+          <button type="submit" class="btn btn-secondary" id="forgot-submit-btn" style="width:100%;">
+            Link senden
+          </button>
+        </form>
+      </div>
     </div>
   </div>
 </div>
 
 <script type="module">
   import { auth, db } from "./firebase-config.js";
-  import { signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { signInWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const form = document.getElementById("login-form");
@@ -154,6 +203,54 @@
   onAuthStateChanged(auth, (user) => {
     // Bewusst kein Auto-Redirect hier, damit man sich auf dieser Testseite
     // auch bewusst neu einloggen kann.
+  });
+
+  // Passwort vergessen: Panel ein-/ausblenden
+  const forgotToggle = document.getElementById("forgot-toggle");
+  const forgotPanel = document.getElementById("forgot-panel");
+  const forgotForm = document.getElementById("forgot-form");
+  const forgotError = document.getElementById("forgot-error");
+  const forgotSuccess = document.getElementById("forgot-success");
+  const forgotSubmitBtn = document.getElementById("forgot-submit-btn");
+
+  const forgotMessages = {
+    "auth/invalid-email": "Diese E-Mail-Adresse ist ungültig.",
+    "auth/too-many-requests": "Zu viele Versuche. Bitte kurz warten und erneut versuchen.",
+  };
+
+  forgotToggle.addEventListener("click", () => {
+    forgotPanel.classList.toggle("open");
+    forgotError.textContent = "";
+    forgotSuccess.textContent = "";
+    forgotToggle.textContent = forgotPanel.classList.contains("open") ? "Abbrechen" : "Passwort vergessen?";
+  });
+
+  forgotForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    forgotError.textContent = "";
+    forgotSuccess.textContent = "";
+    forgotSubmitBtn.disabled = true;
+    forgotSubmitBtn.textContent = "Wird gesendet …";
+
+    const email = document.getElementById("forgot-email").value.trim();
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      forgotSuccess.textContent = "Falls ein Konto mit dieser E-Mail existiert, wurde ein Link zum Zurücksetzen gesendet.";
+      forgotForm.reset();
+    } catch (err) {
+      console.error(err);
+      // Aus Sicherheitsgründen keine Info preisgeben, ob die E-Mail existiert oder nicht,
+      // ausser bei offensichtlich ungültigem Format oder Rate-Limit.
+      if (err.code === "auth/invalid-email" || err.code === "auth/too-many-requests") {
+        forgotError.textContent = forgotMessages[err.code];
+      } else {
+        forgotSuccess.textContent = "Falls ein Konto mit dieser E-Mail existiert, wurde ein Link zum Zurücksetzen gesendet.";
+      }
+    } finally {
+      forgotSubmitBtn.disabled = false;
+      forgotSubmitBtn.textContent = "Link senden";
+    }
   });
 
   // Service Worker registrieren, damit die App auf dem Smartphone installierbar wird
