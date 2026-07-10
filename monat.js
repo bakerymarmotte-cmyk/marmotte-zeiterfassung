@@ -60,13 +60,11 @@ export function initMonatTab(session) {
     );
     const ferienBezogenMonat = countFerientage(ferienDatesThisMonth, feiertagDates);
 
-    // Feriensaldo (Stand: 1. des angezeigten Monats)
+    // Feriensaldo (Stand: 1. des angezeigten Monats) — jahresweise berechnet,
+    // inkl. Kürzung durch Anstellungs-/Kündigungsdatum und Übertrag aus Vorjahren
     const stichtag = new Date(viewYear, viewMonth, 1);
     const stichtagStr = stichtag.toLocaleDateString("de-CH");
-    const stichtagISO = toISODate(stichtag);
-    const ferienanspruch = (general.ferientageProJahr || 25) * ((profile.stellenprozent || 100) / 100);
-    const ferienBezogenTotal = countFerientage(absenceDates.ferienDates, feiertagDates, stichtagISO);
-    const ferienSaldo = ferienanspruch - ferienBezogenTotal;
+    const ferienSaldo = calculateFeriensaldo(profile, general, feiertagDates, absenceDates, stichtag);
 
     // Gleitzeitkonto (kumuliert ab Anstellungsdatum bis 1. des angezeigten Monats)
     let gleitzeitMinuten = null;
@@ -265,18 +263,23 @@ function calculateSollMinutes(year, month, profile, general, feiertagDates, capE
   const tagessollMinuten = ((wochenstunden100 * (stellenprozent / 100)) / arbeitstageProWoche) * 60;
 
   const monthStart = new Date(year, month, 1);
-  const monthEnd = capEnd || new Date(year, month + 1, 0);
+  let rangeEnd = capEnd || new Date(year, month + 1, 0);
 
   let rangeStart = monthStart;
   if (profile.anstellungsdatum) {
     const startDate = new Date(profile.anstellungsdatum);
-    if (startDate > monthEnd) return 0;
+    if (startDate > rangeEnd) return 0;
     if (startDate > monthStart) rangeStart = startDate;
   }
-  if (rangeStart > monthEnd) return 0;
+  if (profile.kuendigungsdatum) {
+    const endDate = new Date(profile.kuendigungsdatum);
+    if (endDate < monthStart) return 0;
+    if (endDate < rangeEnd) rangeEnd = endDate;
+  }
+  if (rangeStart > rangeEnd) return 0;
 
   let sollArbeitstage = 0;
-  for (let d = new Date(rangeStart); d <= monthEnd; d.setDate(d.getDate() + 1)) {
+  for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
     const weekday = d.getDay();
     if (weekday === 0 || weekday === 6) continue;
     const iso = toISODate(d);
@@ -286,6 +289,54 @@ function calculateSollMinutes(year, month, profile, general, feiertagDates, capE
   }
 
   return sollArbeitstage * tagessollMinuten;
+}
+
+// Feriensaldo = Summe über alle Jahre seit Anstellungsbeginn bis zum Stichtag von
+// (anteiliger Jahresanspruch − in diesem Jahr bezogene Ferientage). Der anteilige
+// Jahresanspruch wird nach effektiv angestellten Kalendertagen im jeweiligen Jahr
+// berechnet (gekürzt durch Anstellungs- und Kündigungsdatum). Nicht bezogene Tage
+// aus Vorjahren fliessen so automatisch als Übertrag ins Folgejahr mit ein.
+function calculateFeriensaldo(profile, general, feiertagDates, absenceDates, stichtag) {
+  const anstellungsdatum = profile.anstellungsdatum ? new Date(profile.anstellungsdatum) : null;
+  const kuendigungsdatum = profile.kuendigungsdatum ? new Date(profile.kuendigungsdatum) : null;
+  const stellenprozent = profile.stellenprozent || 100;
+  const ferientageProJahr = general.ferientageProJahr || 25;
+
+  const startYear = anstellungsdatum ? anstellungsdatum.getFullYear() : stichtag.getFullYear();
+  const endYear = stichtag.getFullYear();
+
+  let saldo = 0;
+  for (let y = startYear; y <= endYear; y++) {
+    const yearStart = new Date(y, 0, 1);
+    const yearEnd = new Date(y, 11, 31);
+
+    // Im Stichtag-Jahr zählt nur bis zum Tag vor dem Stichtag (Stand 1. des Monats)
+    let capEndForYear = yearEnd;
+    if (y === endYear) {
+      capEndForYear = new Date(stichtag.getTime() - 86400000);
+      if (capEndForYear < yearStart) continue;
+    }
+
+    let rangeStart = yearStart;
+    if (anstellungsdatum && anstellungsdatum > rangeStart) rangeStart = anstellungsdatum;
+    let rangeEnd = capEndForYear;
+    if (kuendigungsdatum && kuendigungsdatum < rangeEnd) rangeEnd = kuendigungsdatum;
+
+    if (rangeStart > rangeEnd) continue;
+
+    const totalDaysInYear = Math.round((yearEnd - yearStart) / 86400000) + 1;
+    const employedDays = Math.round((rangeEnd - rangeStart) / 86400000) + 1;
+    const anspruchJahr = ferientageProJahr * (stellenprozent / 100) * (employedDays / totalDaysInYear);
+
+    const ferienDatesInYear = new Set(
+      [...absenceDates.ferienDates].filter((iso) => iso.startsWith(`${y}-`))
+    );
+    const bezogenJahr = countFerientage(ferienDatesInYear, feiertagDates, toISODate(rangeEnd));
+
+    saldo += anspruchJahr - bezogenJahr;
+  }
+
+  return saldo;
 }
 
 async function calculateIstForMonth(uid, year, month) {
