@@ -221,6 +221,8 @@
   .summary-value.positive { color: var(--color-success); }
   .summary-value.negative { color: var(--color-danger); }
 
+  .summary-card.full-width { grid-column: 1 / -1; }
+
   .balance-card {
     background: var(--color-surface); border: 1px solid var(--color-border);
     border-radius: var(--radius-md); padding: 16px 18px; margin-top: 12px;
@@ -230,7 +232,7 @@
   .balance-value.negative { color: var(--color-danger); }
 
   .day-row {
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; align-items: flex-start; justify-content: space-between;
     padding: 12px 4px; border-bottom: 1px solid var(--color-border);
   }
   .day-row:last-child { border-bottom: none; }
@@ -489,33 +491,7 @@
       <button id="month-next" class="month-nav-btn">›</button>
     </div>
 
-    <div class="month-summary-grid">
-      <div class="summary-card">
-        <div class="summary-label">Soll</div>
-        <div class="summary-value" id="month-soll">–</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-label">Gearbeitet</div>
-        <div class="summary-value" id="month-ist">–</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-label">Differenz</div>
-        <div class="summary-value" id="month-diff">–</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-label">Ferientage bezogen</div>
-        <div class="summary-value" id="month-ferien">0 T</div>
-      </div>
-    </div>
-
-    <div class="balance-card">
-      <div class="summary-label" id="feriensaldo-label">Feriensaldo</div>
-      <div class="balance-value" id="feriensaldo-value">–</div>
-    </div>
-    <div class="balance-card">
-      <div class="summary-label" id="gleitzeit-label">Gleitzeitkonto</div>
-      <div class="balance-value" id="gleitzeit-value">–</div>
-    </div>
+    <div class="month-summary-grid" id="month-summary-grid"></div>
 
     <div id="month-day-list"></div>
   </section>

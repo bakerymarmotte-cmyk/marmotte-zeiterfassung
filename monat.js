@@ -14,15 +14,10 @@ export function initMonatTab(session) {
   const profile = session.profile;
 
   const labelEl = document.getElementById("month-label");
-  const sollEl = document.getElementById("month-soll");
-  const istEl = document.getElementById("month-ist");
-  const diffEl = document.getElementById("month-diff");
-  const ferienBezogenEl = document.getElementById("month-ferien");
-  const feriensaldoLabel = document.getElementById("feriensaldo-label");
-  const feriensaldoValue = document.getElementById("feriensaldo-value");
-  const gleitzeitLabel = document.getElementById("gleitzeit-label");
-  const gleitzeitValue = document.getElementById("gleitzeit-value");
+  const summaryGridEl = document.getElementById("month-summary-grid");
   const dayListEl = document.getElementById("month-day-list");
+
+  const isStundenlohn = profile.anstellungsart === "stundenlohn";
 
   const now = new Date();
   let viewYear = now.getFullYear();
@@ -42,11 +37,7 @@ export function initMonatTab(session) {
 
   async function render() {
     labelEl.textContent = new Date(viewYear, viewMonth, 1).toLocaleDateString("de-CH", { month: "long", year: "numeric" });
-    sollEl.textContent = "…";
-    istEl.textContent = "…";
-    diffEl.textContent = "…";
-    feriensaldoValue.textContent = "…";
-    gleitzeitValue.textContent = "…";
+    summaryGridEl.innerHTML = '<div class="hint-text">Lädt …</div>';
     dayListEl.innerHTML = '<div class="hint-text">Lädt …</div>';
 
     const [generalSnap, feiertageSnap] = await Promise.all([
@@ -64,37 +55,85 @@ export function initMonatTab(session) {
     const { totalMinutes: istMinuten, perDay } = await calculateIstForMonth(uid, viewYear, viewMonth);
     const diffMinuten = istMinuten - sollMinuten;
 
-    sollEl.textContent = formatMinutes(sollMinuten);
-    istEl.textContent = formatMinutes(istMinuten);
-    diffEl.textContent = (diffMinuten >= 0 ? "+" : "") + formatMinutes(diffMinuten);
-    diffEl.className = "summary-value " + (diffMinuten >= 0 ? "positive" : "negative");
-
     const ferienDatesThisMonth = new Set(
       [...absenceDates.ferienDates].filter((iso) => iso.startsWith(`${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`))
     );
     const ferienBezogenMonat = countFerientage(ferienDatesThisMonth, feiertagDates);
-    ferienBezogenEl.textContent = `${ferienBezogenMonat} T`;
 
-    // Feriensaldo
-    const heuteStr = new Date().toLocaleDateString("de-CH");
-    feriensaldoLabel.textContent = `Feriensaldo (Stand ${heuteStr})`;
+    // Feriensaldo (Stand: 1. des angezeigten Monats)
+    const stichtag = new Date(viewYear, viewMonth, 1);
+    const stichtagStr = stichtag.toLocaleDateString("de-CH");
+    const stichtagISO = toISODate(stichtag);
     const ferienanspruch = (general.ferientageProJahr || 25) * ((profile.stellenprozent || 100) / 100);
-    const ferienBezogenTotal = countFerientage(absenceDates.ferienDates, feiertagDates, toISODate(new Date()));
+    const ferienBezogenTotal = countFerientage(absenceDates.ferienDates, feiertagDates, stichtagISO);
     const ferienSaldo = ferienanspruch - ferienBezogenTotal;
-    feriensaldoValue.textContent = `${ferienSaldo.toFixed(1)} Tage`;
 
-    // Gleitzeitkonto (kumuliert ab Anstellungsdatum)
-    if (profile.anstellungsdatum) {
+    // Gleitzeitkonto (kumuliert ab Anstellungsdatum bis 1. des angezeigten Monats)
+    let gleitzeitMinuten = null;
+    if (!isStundenlohn && profile.anstellungsdatum) {
       const startDate = new Date(profile.anstellungsdatum);
-      gleitzeitLabel.textContent = `Gleitzeitkonto (ab ${startDate.toLocaleDateString("de-CH")})`;
-      const gleitzeitMinuten = await calculateGleitzeitkonto(uid, profile, general, feiertagDates, startDate, absenceDates);
-      gleitzeitValue.textContent = (gleitzeitMinuten >= 0 ? "+" : "") + formatMinutes(gleitzeitMinuten);
-      gleitzeitValue.className = "balance-value " + (gleitzeitMinuten >= 0 ? "positive" : "negative");
-    } else {
-      gleitzeitValue.textContent = "–";
+      gleitzeitMinuten = await calculateGleitzeitkonto(uid, profile, general, feiertagDates, startDate, absenceDates, stichtag);
     }
 
+    renderSummaryGrid({
+      sollMinuten,
+      istMinuten,
+      diffMinuten,
+      ferienBezogenMonat,
+      ferienSaldo,
+      gleitzeitMinuten,
+      stichtagStr,
+    });
+
     renderDayList(viewYear, viewMonth, perDay, absenceDates);
+  }
+
+  function renderSummaryGrid({ sollMinuten, istMinuten, diffMinuten, ferienBezogenMonat, ferienSaldo, gleitzeitMinuten, stichtagStr }) {
+    const diffClass = diffMinuten >= 0 ? "positive" : "negative";
+    const gleitzeitClass = gleitzeitMinuten >= 0 ? "positive" : "negative";
+
+    const gearbeitetCard = `
+      <div class="summary-card${isStundenlohn ? " full-width" : ""}">
+        <div class="summary-label">Gearbeitet</div>
+        <div class="summary-value">${formatMinutes(istMinuten)}</div>
+      </div>`;
+
+    const feriensaldoCard = `
+      <div class="summary-card">
+        <div class="summary-label">Feriensaldo (Stand ${stichtagStr})</div>
+        <div class="summary-value">${ferienSaldo.toFixed(1)} Tage</div>
+      </div>`;
+
+    const ferienBezogenCard = `
+      <div class="summary-card">
+        <div class="summary-label">Ferientage bezogen</div>
+        <div class="summary-value">${ferienBezogenMonat} T</div>
+      </div>`;
+
+    if (isStundenlohn) {
+      summaryGridEl.innerHTML = gearbeitetCard + feriensaldoCard + ferienBezogenCard;
+      return;
+    }
+
+    const sollCard = `
+      <div class="summary-card">
+        <div class="summary-label">Soll</div>
+        <div class="summary-value">${formatMinutes(sollMinuten)}</div>
+      </div>`;
+
+    const diffCard = `
+      <div class="summary-card">
+        <div class="summary-label">Differenz</div>
+        <div class="summary-value ${diffClass}">${(diffMinuten >= 0 ? "+" : "") + formatMinutes(diffMinuten)}</div>
+      </div>`;
+
+    const gleitzeitCard = `
+      <div class="summary-card">
+        <div class="summary-label">Gleitzeitkonto (Stand ${stichtagStr})</div>
+        <div class="summary-value ${gleitzeitMinuten === null ? "" : gleitzeitClass}">${gleitzeitMinuten === null ? "–" : (gleitzeitMinuten >= 0 ? "+" : "") + formatMinutes(gleitzeitMinuten)}</div>
+      </div>`;
+
+    summaryGridEl.innerHTML = sollCard + gearbeitetCard + diffCard + gleitzeitCard + feriensaldoCard + ferienBezogenCard;
   }
 
   function renderDayList(year, month, perDay, absenceDates) {
@@ -110,17 +149,16 @@ export function initMonatTab(session) {
       const isToday = iso === todayISO;
 
       if (dayData && dayData.shifts.length > 0) {
-        const abteilungen = Array.isArray(profile.abteilungen) ? profile.abteilungen : (profile.abteilung ? [profile.abteilung] : []);
-        const shiftTexts = dayData.shifts.map((s) => {
+        const shiftLines = dayData.shifts.map((s, i) => {
           const start = formatTime(s.start);
           const end = s.ende ? formatTime(s.ende) : "läuft";
           const pausenText =
             Array.isArray(s.pausen) && s.pausen.length > 0
               ? s.pausen.map((p) => ` (P ${formatTime(p.start)}–${p.ende ? formatTime(p.ende) : "läuft"})`).join("")
               : "";
-          return `${start}${pausenText}–${end}`;
+          return `Schicht ${i + 1}: ${start}${pausenText}–${end}`;
         });
-        const subLines = `[${abteilungen.join(", ") || "–"}] ${shiftTexts.join(" · ")}`;
+        const subLines = shiftLines.join("<br>");
         rows.push(`
           <div class="day-row has-hours${isToday ? " is-today" : ""}">
             <div>
@@ -292,17 +330,17 @@ async function calculateIstForMonth(uid, year, month) {
   return { totalMinutes, perDay };
 }
 
-async function calculateGleitzeitkonto(uid, profile, general, feiertagDates, startDate, absenceDates) {
+async function calculateGleitzeitkonto(uid, profile, general, feiertagDates, startDate, absenceDates, stichtag) {
   const today = new Date();
+  const cutoff = stichtag < today ? stichtag : today;
   let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-  const endCursor = new Date(today.getFullYear(), today.getMonth(), 1);
 
   let totalDiff = 0;
-  while (cursor <= endCursor) {
+  while (cursor < cutoff) {
     const y = cursor.getFullYear();
     const m = cursor.getMonth();
     const monthEnd = new Date(y, m + 1, 0);
-    const capEnd = monthEnd < today ? monthEnd : today;
+    const capEnd = monthEnd < cutoff ? monthEnd : cutoff;
 
     const soll = calculateSollMinutes(y, m, profile, general, feiertagDates, capEnd, absenceDates);
     const { totalMinutes: ist } = await calculateIstForMonth(uid, y, m);
