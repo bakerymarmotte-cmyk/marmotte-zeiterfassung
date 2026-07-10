@@ -41,6 +41,7 @@ export function initPlanungTab(session) {
     prevBtnId: "woche-prev-admin", nextBtnId: "woche-next-admin", labelId: "woche-label-admin",
     contentId: "planung-content", editable: true, abteilungen: ABTEILUNGEN,
     canSeeAllBemerkungen: true,
+    showFreiwuensche: true,
   });
   setupShiftModal(session);
 }
@@ -70,12 +71,13 @@ function setupWeekTab(session, cfg) {
       loadFerien(weekStartISO, weekEndISO),
       loadAbwesenheiten(weekStartISO, weekEndISO),
     ]);
+    const freiwuensche = cfg.showFreiwuensche ? await loadFreiwuensche(weekStartISO, weekEndISO) : [];
 
     const bemerkungenMap = await loadBemerkungen(shifts, cfg.canSeeAllBemerkungen, cfg.ownUid);
 
     contentEl.innerHTML = "";
     for (const abteilung of cfg.abteilungen) {
-      contentEl.appendChild(renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, abwesenheiten, cfg.editable, cfg.ownUid, bemerkungenMap));
+      contentEl.appendChild(renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, abwesenheiten, cfg.editable, cfg.ownUid, bemerkungenMap, freiwuensche));
     }
 
     if (cfg.editable) {
@@ -85,7 +87,7 @@ function setupWeekTab(session, cfg) {
   }
 }
 
-function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, abwesenheiten, editable, ownUid, bemerkungenMap) {
+function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, abwesenheiten, editable, ownUid, bemerkungenMap, freiwuensche) {
   const wrap = document.createElement("div");
   wrap.className = "abteilung-block";
 
@@ -139,10 +141,30 @@ function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, a
       dayBlock.appendChild(card);
     });
 
+    // Frei-Wünsche der Mitarbeiter dieser Abteilung an diesem Tag (nur informativ, nur in der Planung sichtbar)
+    const freiwuenscheToday = Array.isArray(freiwuensche)
+      ? freiwuensche.filter((f) => {
+          if (f.datum !== iso) return false;
+          const emp = employees.find((e) => e.uid === f.uid);
+          return emp && getEmpAbteilungen(emp).includes(abteilung);
+        })
+      : [];
+    freiwuenscheToday.forEach((f) => {
+      const card = document.createElement("div");
+      card.className = "shift-card freiwunsch-card";
+      card.innerHTML = `
+        <div class="shift-card-main">
+          <span>☁️ <strong>${escapeHtml(f.name)}</strong></span>
+        </div>
+        <div class="shift-card-sub">Frei-Wunsch${f.bemerkung ? ` · ${escapeHtml(f.bemerkung)}` : ""}</div>
+      `;
+      dayBlock.appendChild(card);
+    });
+
     // Geplante Schichten dieser Abteilung an diesem Tag
     const dayShifts = shifts.filter((s) => s.abteilung === abteilung && s.datum === iso);
 
-    if (absencesToday.length === 0 && dayShifts.length === 0) {
+    if (absencesToday.length === 0 && freiwuenscheToday.length === 0 && dayShifts.length === 0) {
       const empty = document.createElement("div");
       empty.className = "hint-text no-shifts-text";
       empty.textContent = "Keine Schichten";
@@ -342,6 +364,13 @@ async function loadFerien(startISO, endISO) {
 async function loadAbwesenheiten(startISO, endISO) {
   const snap = await getDocs(collection(db, "abwesenheiten"));
   return snap.docs.map((d) => d.data()).filter((r) => r.bis >= startISO && r.von <= endISO);
+}
+
+async function loadFreiwuensche(startISO, endISO) {
+  const snap = await getDocs(
+    query(collection(db, "freiwuensche"), where("datum", ">=", startISO), where("datum", "<=", endISO))
+  );
+  return snap.docs.map((d) => d.data());
 }
 
 function getMonday(date) {
