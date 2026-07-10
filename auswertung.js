@@ -660,9 +660,8 @@ const monatsNamenKurz = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug"
 const abwKuerzel = { ferien: "Fer", krank: "Kr", unfall: "Unf", militaer: "Mil", schwangerschaft: "Schw", bezahlter_frei_tag: "BFT" };
 
 async function computeYearlyBreakdown(emp, year, allFerien, allAbw) {
-  const currentYear = new Date().getFullYear();
   const startDate = new Date(year, 0, 1);
-  const endDate = year === currentYear ? new Date() : new Date(year, 11, 31);
+  const endDate = new Date(year, 11, 31);
   const todayISO = toISODate(new Date());
 
   const myFerien = allFerien.filter((f) => f.uid === emp.uid);
@@ -834,9 +833,8 @@ function setupJahresuebersicht(session) {
     uebersichtFeiertage = new Set(feiertageList.map((f) => f.date));
 
     const year = Number(yearEl.value) || currentYear;
-    const todayISO = toISODate(new Date());
     const von = `${year}-01-01`;
-    const bis = year === currentYear ? todayISO : `${year}-12-31`;
+    const bis = `${year}-12-31`;
 
     const abtFilter = abtEl.value;
     const mitFilter = mitEl.value;
