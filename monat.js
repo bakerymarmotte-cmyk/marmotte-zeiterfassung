@@ -291,11 +291,12 @@ function calculateSollMinutes(year, month, profile, general, feiertagDates, capE
   return sollArbeitstage * tagessollMinuten;
 }
 
-// Feriensaldo = Summe über alle Jahre seit Anstellungsbeginn bis zum Stichtag von
+// Feriensaldo = Summe über alle Jahre seit Anstellungsbeginn bis zum Stichtag-Jahr von
 // (anteiliger Jahresanspruch − in diesem Jahr bezogene Ferientage). Der anteilige
-// Jahresanspruch wird nach effektiv angestellten Kalendertagen im jeweiligen Jahr
-// berechnet (gekürzt durch Anstellungs- und Kündigungsdatum). Nicht bezogene Tage
-// aus Vorjahren fliessen so automatisch als Übertrag ins Folgejahr mit ein.
+// Jahresanspruch steht sofort ab Anstellungsdatum für das ganze (Rest-)Jahr zur
+// Verfügung (kein monatsweises Anwachsen) und wird durch das Kündigungsdatum gekürzt,
+// falls die Anstellung in diesem Jahr endet. Nicht bezogene Tage aus Vorjahren fliessen
+// so automatisch als Übertrag ins Folgejahr mit ein.
 function calculateFeriensaldo(profile, general, feiertagDates, absenceDates, stichtag) {
   const anstellungsdatum = profile.anstellungsdatum ? new Date(profile.anstellungsdatum) : null;
   const kuendigungsdatum = profile.kuendigungsdatum ? new Date(profile.kuendigungsdatum) : null;
@@ -310,16 +311,9 @@ function calculateFeriensaldo(profile, general, feiertagDates, absenceDates, sti
     const yearStart = new Date(y, 0, 1);
     const yearEnd = new Date(y, 11, 31);
 
-    // Im Stichtag-Jahr zählt nur bis zum Tag vor dem Stichtag (Stand 1. des Monats)
-    let capEndForYear = yearEnd;
-    if (y === endYear) {
-      capEndForYear = new Date(stichtag.getTime() - 86400000);
-      if (capEndForYear < yearStart) continue;
-    }
-
     let rangeStart = yearStart;
     if (anstellungsdatum && anstellungsdatum > rangeStart) rangeStart = anstellungsdatum;
-    let rangeEnd = capEndForYear;
+    let rangeEnd = yearEnd;
     if (kuendigungsdatum && kuendigungsdatum < rangeEnd) rangeEnd = kuendigungsdatum;
 
     if (rangeStart > rangeEnd) continue;
@@ -331,7 +325,7 @@ function calculateFeriensaldo(profile, general, feiertagDates, absenceDates, sti
     const ferienDatesInYear = new Set(
       [...absenceDates.ferienDates].filter((iso) => iso.startsWith(`${y}-`))
     );
-    const bezogenJahr = countFerientage(ferienDatesInYear, feiertagDates, toISODate(rangeEnd));
+    const bezogenJahr = countFerientage(ferienDatesInYear, feiertagDates);
 
     saldo += anspruchJahr - bezogenJahr;
   }
