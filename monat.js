@@ -100,7 +100,7 @@ export function initMonatTab(session) {
 
     const feriensaldoCard = `
       <div class="summary-card">
-        <div class="summary-label">Feriensaldo (Stand ${stichtagStr})</div>
+        <div class="summary-label">Feriensaldo<span class="stand-line">(Stand ${stichtagStr})</span></div>
         <div class="summary-value">${ferienSaldo.toFixed(1)} Tage</div>
       </div>`;
 
@@ -129,7 +129,7 @@ export function initMonatTab(session) {
 
     const gleitzeitCard = `
       <div class="summary-card">
-        <div class="summary-label">Gleitzeitkonto (Stand ${stichtagStr})</div>
+        <div class="summary-label">Gleitzeitkonto<span class="stand-line">(Stand ${stichtagStr})</span></div>
         <div class="summary-value ${gleitzeitMinuten === null ? "" : gleitzeitClass}">${gleitzeitMinuten === null ? "–" : (gleitzeitMinuten >= 0 ? "+" : "") + formatMinutes(gleitzeitMinuten)}</div>
       </div>`;
 

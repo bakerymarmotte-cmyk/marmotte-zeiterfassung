@@ -214,9 +214,10 @@
   .month-summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .summary-card {
     background: var(--color-surface); border: 1px solid var(--color-border);
-    border-radius: var(--radius-md); padding: 18px;
+    border-radius: var(--radius-md); padding: 18px; text-align: center;
   }
   .summary-label { font-size: 12.5px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px; }
+  .summary-label .stand-line { display: block; text-transform: none; letter-spacing: normal; font-size: 11.5px; margin-top: 2px; }
   .summary-value { font-family: var(--font-mono); font-size: 22px; font-weight: 600; }
   .summary-value.positive { color: var(--color-success); }
   .summary-value.negative { color: var(--color-danger); }
