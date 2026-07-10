@@ -755,12 +755,12 @@
 
     <div class="subpanel" id="sub-abwesenheiten">
       <div class="subtabs" id="abwesenheiten-subtabs">
-        <button data-abwsub="ferienantraege" class="active">Ferienanträge</button>
-        <button data-abwsub="krank">Krank</button>
-        <button data-abwsub="unfall">Unfall</button>
-        <button data-abwsub="militaer">Militär</button>
-        <button data-abwsub="schwangerschaft">Schwangerschaft</button>
-        <button data-abwsub="bezahlter_frei_tag">Bezahlter Frei Tag</button>
+        <button data-abwsub="ferienantraege" class="active">🌴 Ferienanträge</button>
+        <button data-abwsub="krank">🤒 Krank</button>
+        <button data-abwsub="unfall">🚑 Unfall</button>
+        <button data-abwsub="militaer">🎖️ Militär</button>
+        <button data-abwsub="schwangerschaft">🤰 Schwangerschaft</button>
+        <button data-abwsub="bezahlter_frei_tag">🎉 Bezahlter Frei Tag</button>
       </div>
 
       <div class="abw-subpanel active" id="abw-sub-ferienantraege">
@@ -769,6 +769,7 @@
 
       <div class="abw-subpanel" id="abw-sub-simple">
         <div class="card form-card">
+          <h3 class="section-title" id="abw-form-title" style="margin-top:0;">Neuen Eintrag erfassen</h3>
           <div class="field"><label for="abw-mitarbeiter">Mitarbeiter</label><select id="abw-mitarbeiter"></select></div>
           <div class="form-row-2">
             <div class="field"><label for="abw-von">Von</label><input type="date" id="abw-von"></div>
@@ -777,7 +778,10 @@
           <div class="field"><label for="abw-bemerkung">Bemerkung</label><input type="text" id="abw-bemerkung"></div>
           <span class="hint-text" id="abw-bemerkung-hint" style="display:none;">Diese Bemerkung wird im Arbeitsplan für alle sichtbar sein (z.B. "Hochzeit").</span>
           <div class="error-text" id="abw-error"></div>
-          <button class="btn btn-primary" id="abw-submit-btn" style="width:100%; margin-top:10px;">Eintragen</button>
+          <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn btn-secondary" id="abw-cancel-edit-btn" style="display:none; flex:1;">Abbrechen</button>
+            <button class="btn btn-primary" id="abw-submit-btn" style="flex:1;">Eintragen</button>
+          </div>
         </div>
         <div id="abw-simple-list"></div>
       </div>
@@ -819,6 +823,21 @@
   </section>
 
 </main>
+
+<!-- Modal: Ferienantrag genehmigen/ablehnen -->
+<div class="modal-backdrop" id="ferien-decision-modal">
+  <div class="modal-sheet">
+    <h3 id="ferien-decision-title">Ferienantrag genehmigen</h3>
+    <div class="field">
+      <label for="ferien-decision-begruendung" id="ferien-decision-label">Bemerkung (optional)</label>
+      <input type="text" id="ferien-decision-begruendung">
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" id="ferien-decision-cancel">Abbrechen</button>
+      <button type="button" class="btn btn-primary" id="ferien-decision-ok">Bestätigen</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal: Ein-/Ausstempeln bestätigen -->
 <div class="modal-backdrop" id="stempel-confirm-modal">

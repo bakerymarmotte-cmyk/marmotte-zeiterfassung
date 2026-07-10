@@ -14,11 +14,13 @@ const typLabels = {
 export function initAbwesenheitenTab(session) {
   let currentTyp = "ferienantraege";
   let employeesCache = null;
+  let editingAbwId = null;
 
   setupSubtabs();
   loadFerienantraegeAdmin();
 
   document.getElementById("abw-submit-btn").addEventListener("click", submitAbwesenheit);
+  document.getElementById("abw-cancel-edit-btn").addEventListener("click", resetForm);
 
   function setupSubtabs() {
     const buttons = document.querySelectorAll("#abwesenheiten-subtabs button");
@@ -35,6 +37,7 @@ export function initAbwesenheitenTab(session) {
           loadFerienantraegeAdmin();
         } else {
           document.getElementById("abw-bemerkung-hint").style.display = currentTyp === "bezahlter_frei_tag" ? "block" : "none";
+          resetForm();
           await ensureEmployeeOptions();
           loadSimpleList(currentTyp);
         }
@@ -74,26 +77,59 @@ export function initAbwesenheitenTab(session) {
     }
 
     btn.disabled = true;
-    btn.textContent = "Wird gespeichert …";
+    btn.textContent = editingAbwId ? "Speichert …" : "Wird gespeichert …";
     try {
-      await addDoc(collection(db, "abwesenheiten"), {
-        uid,
-        name: empl ? empl.name : "",
-        typ: currentTyp,
-        von, bis, bemerkung,
-        createdAt: new Date().toISOString(),
-      });
-      document.getElementById("abw-von").value = "";
-      document.getElementById("abw-bis").value = "";
-      document.getElementById("abw-bemerkung").value = "";
+      const overlap = await hasOverlap(uid, von, bis, editingAbwId);
+      if (overlap) {
+        errorEl.textContent = "Dieser Zeitraum überschneidet sich mit einem bereits bestehenden Abwesenheits-Eintrag dieses Mitarbeiters.";
+        return;
+      }
+
+      if (editingAbwId) {
+        await updateDoc(doc(db, "abwesenheiten", editingAbwId), {
+          uid, name: empl ? empl.name : "", typ: currentTyp, von, bis, bemerkung,
+        });
+      } else {
+        await addDoc(collection(db, "abwesenheiten"), {
+          uid,
+          name: empl ? empl.name : "",
+          typ: currentTyp,
+          von, bis, bemerkung,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      resetForm();
       loadSimpleList(currentTyp);
     } catch (err) {
       console.error(err);
       errorEl.textContent = "Speichern fehlgeschlagen. Bitte erneut versuchen.";
     } finally {
       btn.disabled = false;
-      btn.textContent = "Eintragen";
+      btn.textContent = editingAbwId ? "Speichern" : "Eintragen";
     }
+  }
+
+  // Prüft Überschneidung mit bestehenden Abwesenheiten desselben Mitarbeiters
+  // (über alle Typen hinweg, ausser dem gerade bearbeiteten Eintrag selbst).
+  async function hasOverlap(uid, von, bis, excludeId) {
+    const snap = await getDocs(query(collection(db, "abwesenheiten"), where("uid", "==", uid)));
+    for (const d of snap.docs) {
+      if (excludeId && d.id === excludeId) continue;
+      const r = d.data();
+      if (von <= r.bis && bis >= r.von) return true;
+    }
+    return false;
+  }
+
+  function resetForm() {
+    editingAbwId = null;
+    document.getElementById("abw-form-title").textContent = "Neuen Eintrag erfassen";
+    document.getElementById("abw-von").value = "";
+    document.getElementById("abw-bis").value = "";
+    document.getElementById("abw-bemerkung").value = "";
+    document.getElementById("abw-error").textContent = "";
+    document.getElementById("abw-submit-btn").textContent = "Eintragen";
+    document.getElementById("abw-cancel-edit-btn").style.display = "none";
   }
 
   async function loadSimpleList(typ) {
@@ -116,7 +152,10 @@ export function initAbwesenheitenTab(session) {
               <div class="request-name">${escapeHtml(a.name || "")}</div>
               ${a.bemerkung ? `<div class="request-bemerkung">"${escapeHtml(a.bemerkung)}"</div>` : ""}
             </div>
-            <button class="small-remove-btn" data-id="${d.id}">✕</button>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button class="icon-btn" data-edit="${d.id}" title="Bearbeiten">✏️</button>
+              <button class="icon-btn icon-btn-danger" data-id="${d.id}" title="Löschen">🗑️</button>
+            </div>
           </div>
         </div>`;
       })
@@ -124,8 +163,27 @@ export function initAbwesenheitenTab(session) {
 
     listEl.querySelectorAll("[data-id]").forEach((b) => {
       b.addEventListener("click", async () => {
+        if (!confirm("Diesen Eintrag wirklich löschen?")) return;
         await deleteDoc(doc(db, "abwesenheiten", b.dataset.id));
+        if (editingAbwId === b.dataset.id) resetForm();
         loadSimpleList(typ);
+      });
+    });
+    listEl.querySelectorAll("[data-edit]").forEach((b) => {
+      b.addEventListener("click", async () => {
+        const snapDoc = await getDoc(doc(db, "abwesenheiten", b.dataset.edit));
+        if (!snapDoc.exists()) return;
+        const a = snapDoc.data();
+        editingAbwId = b.dataset.edit;
+        document.getElementById("abw-form-title").textContent = "Eintrag bearbeiten";
+        document.getElementById("abw-mitarbeiter").value = a.uid;
+        document.getElementById("abw-von").value = a.von || "";
+        document.getElementById("abw-bis").value = a.bis || "";
+        document.getElementById("abw-bemerkung").value = a.bemerkung || "";
+        document.getElementById("abw-error").textContent = "";
+        document.getElementById("abw-submit-btn").textContent = "Speichern";
+        document.getElementById("abw-cancel-edit-btn").style.display = "block";
+        document.querySelector("#abw-sub-simple .form-card").scrollIntoView({ behavior: "smooth", block: "start" });
       });
     });
   }
@@ -178,13 +236,39 @@ export function initAbwesenheitenTab(session) {
     });
   }
 
+  function openDecisionModal(id, action) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById("ferien-decision-modal");
+      const title = document.getElementById("ferien-decision-title");
+      const label = document.getElementById("ferien-decision-label");
+      const input = document.getElementById("ferien-decision-begruendung");
+      const okBtn = document.getElementById("ferien-decision-ok");
+      const cancelBtn = document.getElementById("ferien-decision-cancel");
+
+      title.textContent = action === "approve" ? "Ferienantrag genehmigen" : "Ferienantrag ablehnen";
+      label.textContent = action === "approve" ? "Bemerkung (optional)" : "Begründung (optional)";
+      input.value = "";
+      okBtn.textContent = action === "approve" ? "Genehmigen" : "Ablehnen";
+      modal.classList.add("active");
+      input.focus();
+
+      function cleanup(result) {
+        modal.classList.remove("active");
+        okBtn.removeEventListener("click", onOk);
+        cancelBtn.removeEventListener("click", onCancel);
+        resolve(result);
+      }
+      function onOk() { cleanup(input.value.trim()); }
+      function onCancel() { cleanup(null); }
+
+      okBtn.addEventListener("click", onOk);
+      cancelBtn.addEventListener("click", onCancel);
+    });
+  }
+
   async function handleDecision(id, action) {
-    let begruendung = "";
-    if (action === "reject") {
-      begruendung = prompt("Optionale Begründung für die Ablehnung:") || "";
-    } else {
-      begruendung = prompt("Optionale Bemerkung zur Genehmigung:") || "";
-    }
+    const begruendung = await openDecisionModal(id, action);
+    if (begruendung === null) return; // abgebrochen
     await updateDoc(doc(db, "ferienantraege", id), {
       status: action === "approve" ? "genehmigt" : "abgelehnt",
       begruendung,
