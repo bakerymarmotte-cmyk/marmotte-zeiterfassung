@@ -814,6 +814,11 @@
           <label for="ferientage-jahr">Ferientage pro Jahr (bei 100%)</label>
           <input type="number" id="ferientage-jahr" step="0.5" min="1" max="60">
         </div>
+        <div class="field">
+          <label for="sperrfrist-wochen">Sperrfrist für Ferien/Frei-Wünsche (Wochen im Voraus)</label>
+          <input type="number" id="sperrfrist-wochen" step="1" min="0" max="52">
+          <span class="hint-text">Mitarbeitende können innerhalb dieser Frist keine neuen Ferien oder Frei-Wünsche mehr beantragen. Admin/Leitung sind davon ausgenommen. 0 = keine Sperrfrist.</span>
+        </div>
         <button class="btn btn-primary" id="save-grundeinstellungen-btn" style="width:100%; margin-bottom:18px;">Speichern</button>
       </div>
 

@@ -1,6 +1,6 @@
 import { db } from "./firebase-config.js";
 import {
-  collection, addDoc, query, where, getDocs, orderBy, deleteDoc, doc
+  collection, addDoc, query, where, getDocs, getDoc, orderBy, deleteDoc, doc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const statusLabels = { offen: "Offen", genehmigt: "Genehmigt", abgelehnt: "Abgelehnt" };
@@ -8,10 +8,30 @@ const statusLabels = { offen: "Offen", genehmigt: "Genehmigt", abgelehnt: "Abgel
 export function initAntraegeTab(session) {
   const uid = session.uid;
   const name = session.profile.name || "";
+  const isExemptFromSperrfrist = session.profile.role === "admin" || session.profile.role === "leitung";
 
   setupSubtabs();
   setupFerien();
   setupFreiwuensche();
+
+  // Prüft, ob ein Datum innerhalb der aktuell geltenden Sperrfrist liegt.
+  // Admin/Leitung sind davon ausgenommen.
+  async function isDateBlocked(dateISO) {
+    if (isExemptFromSperrfrist) return false;
+    const snap = await getDoc(doc(db, "settings", "general"));
+    const wochen = snap.exists() ? Number(snap.data().sperrfristWochen) || 0 : 0;
+    if (wochen <= 0) return false;
+    const grenze = new Date();
+    grenze.setDate(grenze.getDate() + wochen * 7);
+    return dateISO < toISODate(grenze);
+  }
+
+  function toISODate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
 
   function setupSubtabs() {
     const buttons = document.querySelectorAll("#antraege-subtabs button");
@@ -48,6 +68,16 @@ export function initAntraegeTab(session) {
       btn.disabled = true;
       btn.textContent = "Wird gesendet …";
       try {
+        const blocked = await isDateBlocked(vonEl.value);
+        if (blocked) {
+          errorEl.textContent = "Für diesen Zeitraum gilt aktuell eine Sperrfrist – bitte wende dich an die Leitung/Admin.";
+          return;
+        }
+        const overlap = await hasOverlap(vonEl.value, bisEl.value);
+        if (overlap) {
+          errorEl.textContent = "Dieser Zeitraum überschneidet sich mit einem bereits bestehenden Ferienantrag.";
+          return;
+        }
         await addDoc(collection(db, "ferienantraege"), {
           uid, name,
           von: vonEl.value,
@@ -68,6 +98,19 @@ export function initAntraegeTab(session) {
       }
     });
 
+    // Prüft, ob sich der gewünschte Zeitraum mit einem bestehenden (offenen oder
+    // genehmigten) Ferienantrag desselben Mitarbeiters überschneidet.
+    async function hasOverlap(von, bis) {
+      const q = query(collection(db, "ferienantraege"), where("uid", "==", uid));
+      const snap = await getDocs(q);
+      for (const d of snap.docs) {
+        const r = d.data();
+        if (r.status === "abgelehnt") continue;
+        if (von <= r.bis && bis >= r.von) return true;
+      }
+      return false;
+    }
+
     async function loadFerien() {
       listEl.innerHTML = '<div class="hint-text">Lädt…</div>';
       const q = query(collection(db, "ferienantraege"), where("uid", "==", uid), orderBy("createdAt", "desc"));
@@ -86,13 +129,24 @@ export function initAntraegeTab(session) {
                 <div class="request-range">${formatDate(r.von)} – ${formatDate(r.bis)}</div>
                 <div class="request-name">${escapeHtml(name)}</div>
               </div>
-              <span class="status-badge ${r.status}">${statusLabels[r.status] || r.status}</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="status-badge ${r.status}">${statusLabels[r.status] || r.status}</span>
+                ${r.status === "offen" ? `<button class="small-remove-btn" data-id="${d.id}">✕</button>` : ""}
+              </div>
             </div>
             ${r.bemerkung ? `<div class="request-bemerkung">"${escapeHtml(r.bemerkung)}"</div>` : ""}
             ${r.begruendung ? `<div class="request-begruendung">Begründung: ${escapeHtml(r.begruendung)}</div>` : ""}
           </div>`;
         })
         .join("");
+
+      listEl.querySelectorAll("[data-id]").forEach((b) => {
+        b.addEventListener("click", async () => {
+          if (!confirm("Diesen Ferienantrag wirklich löschen?")) return;
+          await deleteDoc(doc(db, "ferienantraege", b.dataset.id));
+          loadFerien();
+        });
+      });
     }
   }
 
@@ -114,6 +168,11 @@ export function initAntraegeTab(session) {
       btn.disabled = true;
       btn.textContent = "Wird gespeichert …";
       try {
+        const blocked = await isDateBlocked(datumEl.value);
+        if (blocked) {
+          errorEl.textContent = "Für dieses Datum gilt aktuell eine Sperrfrist – bitte wende dich an die Leitung/Admin.";
+          return;
+        }
         await addDoc(collection(db, "freiwuensche"), {
           uid, name,
           datum: datumEl.value,

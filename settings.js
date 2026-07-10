@@ -14,9 +14,10 @@ export function initSettingsTab(session) {
 
   async function loadGrundeinstellungen() {
     const snap = await getDoc(doc(db, "settings", "general"));
-    const data = snap.exists() ? snap.data() : { wochenstunden100: 42, ferientageProJahr: 25 };
+    const data = snap.exists() ? snap.data() : { wochenstunden100: 42, ferientageProJahr: 25, sperrfristWochen: 0 };
     document.getElementById("wochenstunden100").value = data.wochenstunden100 ?? 42;
     document.getElementById("ferientage-jahr").value = data.ferientageProJahr ?? 25;
+    document.getElementById("sperrfrist-wochen").value = data.sperrfristWochen ?? 0;
   }
 
   async function saveGrundeinstellungen() {
@@ -27,6 +28,7 @@ export function initSettingsTab(session) {
       await setDoc(doc(db, "settings", "general"), {
         wochenstunden100: Number(document.getElementById("wochenstunden100").value),
         ferientageProJahr: Number(document.getElementById("ferientage-jahr").value),
+        sperrfristWochen: Number(document.getElementById("sperrfrist-wochen").value) || 0,
       });
       btn.textContent = "Gespeichert ✓";
       setTimeout(() => (btn.textContent = "Speichern"), 1500);
