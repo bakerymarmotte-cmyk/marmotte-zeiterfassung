@@ -1,6 +1,6 @@
 import { db } from "./firebase-config.js";
 import {
-  collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs, query, where, orderBy
+  collection, doc, addDoc, updateDoc, deleteDoc, setDoc, getDoc, getDocs, query, where, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const ABTEILUNGEN = ["Bäckerei", "Tearoom&Laden", "Dorfladen"];
@@ -67,9 +67,11 @@ function setupWeekTab(session, cfg) {
       loadAbwesenheiten(weekStartISO, weekEndISO),
     ]);
 
+    const bemerkungenMap = await loadBemerkungen(shifts, cfg.editable, cfg.ownUid);
+
     contentEl.innerHTML = "";
     for (const abteilung of cfg.abteilungen) {
-      contentEl.appendChild(renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, abwesenheiten, cfg.editable, cfg.ownUid));
+      contentEl.appendChild(renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, abwesenheiten, cfg.editable, cfg.ownUid, bemerkungenMap));
     }
 
     if (cfg.editable) {
@@ -79,7 +81,7 @@ function setupWeekTab(session, cfg) {
   }
 }
 
-function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, abwesenheiten, editable, ownUid) {
+function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, abwesenheiten, editable, ownUid, bemerkungenMap) {
   const wrap = document.createElement("div");
   wrap.className = "abteilung-block";
 
@@ -147,12 +149,13 @@ function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, a
       const card = document.createElement("div");
       const isOwn = ownUid && s.uid === ownUid;
       card.className = "shift-card" + (isOwn ? " own-shift" : "") + (isOwn && isToday ? " is-today-shift" : "");
+      const bemerkung = bemerkungenMap.get(s.id);
       card.innerHTML = `
         <div class="shift-card-main">
           <div>
             <strong>${escapeHtml(s.name)}</strong>
             <div class="shift-card-time">${s.von} – ${s.bis}</div>
-            ${s.bemerkung ? `<div class="shift-card-sub">${escapeHtml(s.bemerkung)}</div>` : ""}
+            ${bemerkung ? `<div class="shift-card-sub">${escapeHtml(bemerkung)}</div>` : ""}
           </div>
           ${editable ? `
             <div class="shift-card-actions">
@@ -179,6 +182,23 @@ function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, a
   return wrap;
 }
 
+async function loadBemerkungen(shifts, editable, ownUid) {
+  const relevantIds = editable
+    ? shifts.map((s) => s.id)
+    : shifts.filter((s) => ownUid && s.uid === ownUid).map((s) => s.id);
+
+  const map = new Map();
+  await Promise.all(
+    relevantIds.map(async (id) => {
+      const snap = await getDoc(doc(db, "arbeitsplan_bemerkungen", id));
+      if (snap.exists() && snap.data().bemerkung) {
+        map.set(id, snap.data().bemerkung);
+      }
+    })
+  );
+  return map;
+}
+
 function wireUpAddButtons(container, session) {
   container.querySelectorAll(".add-shift-btn").forEach((btn) => {
     btn.addEventListener("click", () => openShiftModal(null, btn.dataset.datum, btn.dataset.abteilung));
@@ -189,13 +209,20 @@ function wireUpEditDeleteButtons(container, refreshFn) {
   container.querySelectorAll("[data-edit]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const snap = await getDoc(doc(db, "arbeitsplan", btn.dataset.edit));
-      if (snap.exists()) openShiftModal(btn.dataset.edit, snap.data().datum, snap.data().abteilung, snap.data());
+      if (!snap.exists()) return;
+      const bemerkungSnap = await getDoc(doc(db, "arbeitsplan_bemerkungen", btn.dataset.edit));
+      const existingData = {
+        ...snap.data(),
+        bemerkung: bemerkungSnap.exists() ? (bemerkungSnap.data().bemerkung || "") : "",
+      };
+      openShiftModal(btn.dataset.edit, snap.data().datum, snap.data().abteilung, existingData);
     });
   });
   container.querySelectorAll("[data-delete]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       if (!confirm("Diese Schicht wirklich löschen?")) return;
       await deleteDoc(doc(db, "arbeitsplan", btn.dataset.delete));
+      await deleteDoc(doc(db, "arbeitsplan_bemerkungen", btn.dataset.delete)).catch(() => {});
       refreshFn();
     });
   });
@@ -225,8 +252,8 @@ async function setupShiftModal(session) {
       datum: form.dataset.datum,
       von: document.getElementById("shift-von").value,
       bis: document.getElementById("shift-bis").value,
-      bemerkung: document.getElementById("shift-bemerkung").value.trim(),
     };
+    const bemerkung = document.getElementById("shift-bemerkung").value.trim();
 
     if (!uid || !data.von || !data.bis) {
       errorEl.textContent = "Bitte Mitarbeiter, Von- und Bis-Zeit angeben.";
@@ -236,11 +263,16 @@ async function setupShiftModal(session) {
     saveBtn.disabled = true;
     saveBtn.textContent = "Speichert …";
     try {
+      let shiftId = editingShiftId;
       if (editingShiftId) {
         await updateDoc(doc(db, "arbeitsplan", editingShiftId), data);
       } else {
-        await addDoc(collection(db, "arbeitsplan"), { ...data, createdAt: new Date().toISOString() });
+        const newDoc = await addDoc(collection(db, "arbeitsplan"), { ...data, createdAt: new Date().toISOString() });
+        shiftId = newDoc.id;
       }
+      // Bemerkung liegt in einer eigenen Collection, damit die Firestore-Regeln
+      // den Lesezugriff auf den betroffenen Mitarbeiter sowie Admin/Leitung beschränken können.
+      await setDoc(doc(db, "arbeitsplan_bemerkungen", shiftId), { uid, bemerkung });
       modal.classList.remove("active");
       window.dispatchEvent(new CustomEvent("arbeitsplan-refresh"));
     } catch (err) {
