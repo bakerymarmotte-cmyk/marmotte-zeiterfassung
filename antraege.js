@@ -26,6 +26,18 @@ export function initAntraegeTab(session) {
     return dateISO < toISODate(grenze);
   }
 
+  // Prüft, ob sich ein Ferienzeitraum mit einem admin-definierten Sperrzeitraum
+  // überschneidet (z.B. Hochsaison). Admin/Leitung sind davon ausgenommen.
+  async function overlapsFeriensperre(von, bis) {
+    if (isExemptFromSperrfrist) return null;
+    const snap = await getDoc(doc(db, "settings", "feriensperren"));
+    const list = snap.exists() && Array.isArray(snap.data().list) ? snap.data().list : [];
+    for (const s of list) {
+      if (von <= s.bis && bis >= s.von) return s;
+    }
+    return null;
+  }
+
   function toISODate(d) {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -71,6 +83,11 @@ export function initAntraegeTab(session) {
         const blocked = await isDateBlocked(vonEl.value);
         if (blocked) {
           errorEl.textContent = "Für diesen Zeitraum gilt aktuell eine Sperrfrist – bitte wende dich an die Leitung/Admin.";
+          return;
+        }
+        const sperre = await overlapsFeriensperre(vonEl.value, bisEl.value);
+        if (sperre) {
+          errorEl.textContent = `In diesem Zeitraum können keine Ferien beantragt werden${sperre.name ? ` (${sperre.name})` : ""}. Bitte wende dich an die Leitung/Admin.`;
           return;
         }
         const overlap = await hasOverlap(vonEl.value, bisEl.value);

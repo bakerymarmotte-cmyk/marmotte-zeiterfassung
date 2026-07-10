@@ -6,11 +6,13 @@ export function initSettingsTab(session) {
 
   loadGrundeinstellungen();
   loadHolidays();
+  loadFeriensperren();
 
   if (isAdmin) {
     document.getElementById("save-grundeinstellungen-btn").addEventListener("click", saveGrundeinstellungen);
   }
   document.getElementById("add-holiday-btn").addEventListener("click", addHoliday);
+  document.getElementById("add-feriensperre-btn").addEventListener("click", addFeriensperre);
 
   async function loadGrundeinstellungen() {
     const snap = await getDoc(doc(db, "settings", "general"));
@@ -99,6 +101,65 @@ export function initSettingsTab(session) {
     await setDoc(ref, { list: updated });
     renderHolidays(updated);
     dateInput.value = "";
+    nameInput.value = "";
+  }
+
+  async function loadFeriensperren() {
+    const ref = doc(db, "settings", "feriensperren");
+    const snap = await getDoc(ref);
+    const list = snap.exists() && Array.isArray(snap.data().list) ? snap.data().list : [];
+    renderFeriensperren(list);
+  }
+
+  function renderFeriensperren(list) {
+    const container = document.getElementById("feriensperre-list");
+    const sorted = [...list].sort((a, b) => a.von.localeCompare(b.von));
+    if (sorted.length === 0) {
+      container.innerHTML = '<div class="hint-text">Keine Sperrzeiträume hinterlegt.</div>';
+      return;
+    }
+    container.innerHTML = sorted
+      .map(
+        (s) => `
+      <div class="feriensperre-row" data-von="${s.von}" data-bis="${s.bis}">
+        <span class="range">${formatDate(s.von)} – ${formatDate(s.bis)}</span>
+        <span class="name">${escapeHtml(s.name || "")}</span>
+        <button class="remove-btn" data-remove="${s.von}|${s.bis}|${escapeAttr(s.name || "")}">✕</button>
+      </div>`
+      )
+      .join("");
+
+    container.querySelectorAll("[data-remove]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const [von, bis, name] = btn.dataset.remove.split("|");
+        const ref = doc(db, "settings", "feriensperren");
+        const snap = await getDoc(ref);
+        const current = snap.exists() && Array.isArray(snap.data().list) ? snap.data().list : [];
+        const updated = current.filter((s) => !(s.von === von && s.bis === bis && (s.name || "") === name));
+        await setDoc(ref, { list: updated });
+        renderFeriensperren(updated);
+      });
+    });
+  }
+
+  async function addFeriensperre() {
+    const vonInput = document.getElementById("new-feriensperre-von");
+    const bisInput = document.getElementById("new-feriensperre-bis");
+    const nameInput = document.getElementById("new-feriensperre-name");
+    const von = vonInput.value;
+    const bis = bisInput.value;
+    const name = nameInput.value.trim();
+    if (!von || !bis) return;
+    if (bis < von) return;
+
+    const ref = doc(db, "settings", "feriensperren");
+    const snap = await getDoc(ref);
+    const current = snap.exists() && Array.isArray(snap.data().list) ? snap.data().list : [];
+    const updated = [...current, { von, bis, name }];
+    await setDoc(ref, { list: updated });
+    renderFeriensperren(updated);
+    vonInput.value = "";
+    bisInput.value = "";
     nameInput.value = "";
   }
 }

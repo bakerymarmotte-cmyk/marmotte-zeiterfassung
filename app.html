@@ -157,9 +157,17 @@
   .holiday-row .remove-btn { background: none; border: none; color: var(--color-text-muted); font-size: 18px; }
   .holiday-row .remove-btn:hover { color: var(--color-danger); }
 
-  .inline-add-row { display: flex; gap: 8px; margin-top: 12px; }
-  .inline-add-row input { flex: 1; }
-  .inline-add-row .field { margin-bottom: 0; }
+  .feriensperre-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid var(--color-border);
+    font-size: 14px; gap: 10px;
+  }
+  .feriensperre-row:last-child { border-bottom: none; }
+  .feriensperre-row .range { font-family: var(--font-mono); color: var(--color-yellow); font-size: 13px; }
+  .feriensperre-row .name { color: var(--color-text-muted); font-size: 13px; flex: 1; }
+
+  .inline-add-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .inline-add-row .field { flex: 1; min-width: 120px; margin-bottom: 0; }
 
   /* Live-Uhr */
   .clock-block { text-align: center; padding: 28px 0 8px; }
@@ -830,6 +838,18 @@
           <div class="field"><input type="text" id="new-holiday-name" placeholder="Bezeichnung"></div>
         </div>
         <button class="btn btn-secondary" id="add-holiday-btn" style="width:100%; margin: 10px 0 18px;">Feiertag hinzufügen</button>
+      </div>
+
+      <div class="settings-card">
+        <h4>Ferien-Sperrzeiträume</h4>
+        <span class="hint-text" style="display:block; margin-bottom:12px;">In diesen Zeiträumen können Mitarbeitende keine Ferien beantragen (z.B. Hochsaison). Frei-Wünsche sind davon nicht betroffen. Admin/Leitung sind ausgenommen.</span>
+        <div id="feriensperre-list"></div>
+        <div class="inline-add-row">
+          <div class="field"><label for="new-feriensperre-von">Von</label><input type="date" id="new-feriensperre-von"></div>
+          <div class="field"><label for="new-feriensperre-bis">Bis</label><input type="date" id="new-feriensperre-bis"></div>
+          <div class="field"><label for="new-feriensperre-name">Bezeichnung</label><input type="text" id="new-feriensperre-name" placeholder="z.B. Weihnachtsgeschäft"></div>
+        </div>
+        <button class="btn btn-secondary" id="add-feriensperre-btn" style="width:100%; margin: 10px 0 18px;">Sperrzeitraum hinzufügen</button>
       </div>
     </div>
   </section>
