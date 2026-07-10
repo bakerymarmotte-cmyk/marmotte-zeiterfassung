@@ -82,12 +82,12 @@ export function initAntraegeTab(session) {
       try {
         const blocked = await isDateBlocked(vonEl.value);
         if (blocked) {
-          errorEl.textContent = "Für diesen Zeitraum gilt aktuell eine Sperrfrist – bitte wende dich an die Leitung/Admin.";
+          errorEl.textContent = "Ferien in diesem Zeitraum nicht möglich.";
           return;
         }
         const sperre = await overlapsFeriensperre(vonEl.value, bisEl.value);
         if (sperre) {
-          errorEl.textContent = `In diesem Zeitraum können keine Ferien beantragt werden${sperre.name ? ` (${sperre.name})` : ""}. Bitte wende dich an die Leitung/Admin.`;
+          errorEl.textContent = `Ferien sind in diesem Zeitraum nicht möglich${sperre.name ? ` (${sperre.name})` : ""} – wende dich an die Leitung.`;
           return;
         }
         const overlap = await hasOverlap(vonEl.value, bisEl.value);
@@ -187,7 +187,7 @@ export function initAntraegeTab(session) {
       try {
         const blocked = await isDateBlocked(datumEl.value);
         if (blocked) {
-          errorEl.textContent = "Für dieses Datum gilt aktuell eine Sperrfrist – bitte wende dich an die Leitung/Admin.";
+          errorEl.textContent = "Frei-Wunsch in diesem Zeitraum nicht möglich.";
           return;
         }
         await addDoc(collection(db, "freiwuensche"), {
