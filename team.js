@@ -234,7 +234,7 @@ export function initTeamTab(session) {
       });
       document.getElementById("employee-save-btn").textContent = "Speichern";
 
-      kuendigungsdatumField.style.display = "block";
+      kuendigungsdatumField.style.display = "flex";
       document.getElementById("emp-kuendigungsdatum").value = data.kuendigungsdatum || "";
 
       toggleActiveBtn.style.display = "block";
