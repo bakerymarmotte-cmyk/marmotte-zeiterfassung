@@ -22,16 +22,17 @@ let editingShiftId = null;
 let employeesCache = null;
 
 export function initArbeitsplanTab(session) {
+  const role = session.profile.role;
+  const isLeitungOrAdmin = role === "admin" || role === "leitung";
   const myAbteilungen = getEmpAbteilungen(session.profile);
   const sichtbareAbteilungen = ABTEILUNGEN.filter((a) => myAbteilungen.includes(a));
-  const role = session.profile.role;
 
   setupWeekTab(session, {
     prevBtnId: "week-prev", nextBtnId: "week-next", labelId: "week-label",
     contentId: "arbeitsplan-content", editable: false,
-    abteilungen: sichtbareAbteilungen.length > 0 ? sichtbareAbteilungen : ABTEILUNGEN,
+    abteilungen: isLeitungOrAdmin || sichtbareAbteilungen.length === 0 ? ABTEILUNGEN : sichtbareAbteilungen,
     ownUid: session.uid,
-    canSeeAllBemerkungen: role === "admin" || role === "leitung",
+    canSeeAllBemerkungen: isLeitungOrAdmin,
   });
 }
 
