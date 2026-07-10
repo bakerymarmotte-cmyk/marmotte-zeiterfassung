@@ -3,6 +3,7 @@ import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/
 
 export function initSettingsTab(session) {
   const isAdmin = session.profile.role === "admin";
+  let holidaysCache = [];
 
   loadGrundeinstellungen();
   loadHolidays();
@@ -13,6 +14,9 @@ export function initSettingsTab(session) {
   }
   document.getElementById("add-holiday-btn").addEventListener("click", addHoliday);
   document.getElementById("add-feriensperre-btn").addEventListener("click", addFeriensperre);
+  document.getElementById("holiday-year-select").addEventListener("change", () => {
+    renderHolidaysForYear(document.getElementById("holiday-year-select").value);
+  });
 
   async function loadGrundeinstellungen() {
     const snap = await getDoc(doc(db, "settings", "general"));
@@ -53,33 +57,42 @@ export function initSettingsTab(session) {
       list = generateDefaultBernHolidays(2026, 2032);
       await setDoc(ref, { list });
     }
-    renderHolidays(list);
+    holidaysCache = list;
+    populateHolidayYearSelect(list);
   }
 
-  function renderHolidays(list) {
+  function populateHolidayYearSelect(list) {
+    const select = document.getElementById("holiday-year-select");
+    const currentSelection = select.value;
+    const years = [...new Set(list.map((h) => h.date.slice(0, 4)))].sort();
+    const thisYear = String(new Date().getFullYear());
+    if (!years.includes(thisYear)) years.push(thisYear);
+    years.sort();
+
+    select.innerHTML = years.map((y) => `<option value="${y}">${y}</option>`).join("");
+    select.value = years.includes(currentSelection) ? currentSelection : (years.includes(thisYear) ? thisYear : years[0]);
+    renderHolidaysForYear(select.value);
+  }
+
+  function renderHolidaysForYear(year) {
     const container = document.getElementById("holiday-list");
-    const sorted = [...list].sort((a, b) => a.date.localeCompare(b.date));
-    if (sorted.length === 0) {
-      container.innerHTML = '<div class="hint-text">Keine Feiertage hinterlegt.</div>';
+    const filtered = holidaysCache.filter((h) => h.date.slice(0, 4) === year).sort((a, b) => a.date.localeCompare(b.date));
+
+    if (filtered.length === 0) {
+      container.innerHTML = `<div class="hint-text">Keine Feiertage für ${year} hinterlegt.</div>`;
       return;
     }
 
-    let html = "";
-    let currentYear = null;
-    for (const h of sorted) {
-      const year = h.date.slice(0, 4);
-      if (year !== currentYear) {
-        html += `<div class="holiday-year-heading">${year}</div>`;
-        currentYear = year;
-      }
-      html += `
+    container.innerHTML = filtered
+      .map(
+        (h) => `
       <div class="holiday-row" data-date="${h.date}">
         <span class="date">${formatDate(h.date)}</span>
         <span style="flex:1; margin-left:12px;">${escapeHtml(h.name)}</span>
         <button class="remove-btn" data-remove="${h.date}|${escapeAttr(h.name)}">✕</button>
-      </div>`;
-    }
-    container.innerHTML = html;
+      </div>`
+      )
+      .join("");
 
     container.querySelectorAll("[data-remove]").forEach((btn) => {
       btn.addEventListener("click", async () => {
@@ -89,7 +102,8 @@ export function initSettingsTab(session) {
         const current = snap.exists() ? snap.data().list : [];
         const updated = current.filter((h) => !(h.date === date && h.name === name));
         await setDoc(ref, { list: updated });
-        renderHolidays(updated);
+        holidaysCache = updated;
+        renderHolidaysForYear(year);
       });
     });
   }
@@ -106,7 +120,10 @@ export function initSettingsTab(session) {
     const current = snap.exists() ? snap.data().list : [];
     const updated = [...current, { date, name }];
     await setDoc(ref, { list: updated });
-    renderHolidays(updated);
+    holidaysCache = updated;
+    populateHolidayYearSelect(updated);
+    document.getElementById("holiday-year-select").value = date.slice(0, 4);
+    renderHolidaysForYear(date.slice(0, 4));
     dateInput.value = "";
     nameInput.value = "";
   }

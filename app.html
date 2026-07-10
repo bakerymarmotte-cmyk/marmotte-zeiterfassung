@@ -156,11 +156,6 @@
   .holiday-row .date { font-family: var(--font-mono); color: var(--color-yellow); font-size: 13px; min-width: 88px; }
   .holiday-row .remove-btn { background: none; border: none; color: var(--color-text-muted); font-size: 18px; }
   .holiday-row .remove-btn:hover { color: var(--color-danger); }
-  .holiday-year-heading {
-    font-size: 12px; font-weight: 700; color: var(--color-yellow); text-transform: uppercase;
-    letter-spacing: 0.04em; margin: 16px 0 4px;
-  }
-  .holiday-year-heading:first-child { margin-top: 0; }
 
   .feriensperre-row {
     display: flex; align-items: center; justify-content: space-between;
@@ -849,6 +844,10 @@
 
       <div class="settings-card">
         <h4>Feiertage Kanton Bern</h4>
+        <div class="field" style="max-width:160px;">
+          <label for="holiday-year-select">Jahr</label>
+          <select id="holiday-year-select"></select>
+        </div>
         <div id="holiday-list"></div>
         <div class="inline-add-row">
           <div class="field"><input type="date" id="new-holiday-date"></div>
