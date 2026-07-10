@@ -168,16 +168,32 @@ export function initStempelTab(session) {
                 .map((p) => `${formatTime(p.start)}–${p.ende ? formatTime(p.ende) : "läuft"}`)
                 .join(", ")
             : "Keine Pause";
+        const hoursText = s.ende ? formatDuration(s.start, s.ende, s.pausen) : "läuft";
         return `
         <div class="shift-row">
           <div class="shift-row-main">
             <span class="shift-label">Schicht ${i + 1}</span>
-            <span class="shift-range">${range}</span>
+            <span class="shift-range">${hoursText}</span>
           </div>
-          <div class="shift-row-pause">Pause: ${pausenText}</div>
+          <div class="shift-row-pause">${range} · Pause: ${pausenText}</div>
         </div>`;
       })
       .join("");
+  }
+
+  function formatDuration(startIso, endIso, pausen) {
+    let minutes = (new Date(endIso) - new Date(startIso)) / 60000;
+    if (Array.isArray(pausen)) {
+      for (const p of pausen) {
+        const pStart = new Date(p.start);
+        const pEnd = p.ende ? new Date(p.ende) : new Date();
+        minutes -= (pEnd - pStart) / 60000;
+      }
+    }
+    minutes = Math.max(0, Math.round(minutes));
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `${h}h ${String(m).padStart(2, "0")}m`;
   }
 
   function startClock() {
