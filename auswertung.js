@@ -141,6 +141,17 @@ function getAbteilungen(profile) {
   return [];
 }
 
+// Sortiert nach Personalnummer (numerisch, falls möglich, sonst alphabetisch)
+function sortByPersonalnummer(employees) {
+  return employees.slice().sort((a, b) => {
+    const pa = a.personalnummer || "";
+    const pb = b.personalnummer || "";
+    const na = Number(pa), nb = Number(pb);
+    if (!isNaN(na) && !isNaN(nb) && pa !== "" && pb !== "") return na - nb;
+    return pa.localeCompare(pb);
+  });
+}
+
 function toISODate(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -189,8 +200,8 @@ function setupUebersicht(session) {
   filterBtn.addEventListener("click", renderUebersicht);
 
   async function loadEmployeeOptions() {
-    const snap = await getDocs(query(collection(db, "users"), orderBy("name")));
-    uebersichtEmployeesCache = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+    const snap = await getDocs(collection(db, "users"));
+    uebersichtEmployeesCache = sortByPersonalnummer(snap.docs.map((d) => ({ uid: d.id, ...d.data() })));
     mitEl.innerHTML =
       '<option value="alle">Alle</option>' +
       uebersichtEmployeesCache.map((e) => `<option value="${e.uid}">${escapeHtml(e.name)}</option>`).join("");
@@ -813,8 +824,8 @@ function setupJahresuebersicht(session) {
   });
 
   async function loadEmployeeOptions() {
-    const snap = await getDocs(query(collection(db, "users"), orderBy("name")));
-    jahrEmployeesCache = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+    const snap = await getDocs(collection(db, "users"));
+    jahrEmployeesCache = sortByPersonalnummer(snap.docs.map((d) => ({ uid: d.id, ...d.data() })));
     mitEl.innerHTML =
       '<option value="alle">Alle</option>' +
       jahrEmployeesCache.map((e) => `<option value="${e.uid}">${escapeHtml(e.name)}</option>`).join("");
