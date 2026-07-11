@@ -325,7 +325,8 @@ function calculateFeriensaldo(profile, general, feiertagDates, absenceDates, sti
     const ferienDatesInYear = new Set(
       [...absenceDates.ferienDates].filter((iso) => iso.startsWith(`${y}-`))
     );
-    const bezogenJahr = countFerientage(ferienDatesInYear, feiertagDates);
+    const upTo = y === endYear ? toISODate(new Date(stichtag.getTime() - 86400000)) : undefined;
+    const bezogenJahr = countFerientage(ferienDatesInYear, feiertagDates, upTo);
 
     saldo += anspruchJahr - bezogenJahr;
   }
@@ -376,16 +377,14 @@ async function calculateIstForMonth(uid, year, month) {
 }
 
 async function calculateGleitzeitkonto(uid, profile, general, feiertagDates, startDate, absenceDates, stichtag) {
-  const today = new Date();
-  const cutoff = stichtag < today ? stichtag : today;
   let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
 
   let totalDiff = 0;
-  while (cursor < cutoff) {
+  while (cursor < stichtag) {
     const y = cursor.getFullYear();
     const m = cursor.getMonth();
     const monthEnd = new Date(y, m + 1, 0);
-    const capEnd = monthEnd < cutoff ? monthEnd : cutoff;
+    const capEnd = monthEnd < stichtag ? monthEnd : stichtag;
 
     const soll = calculateSollMinutes(y, m, profile, general, feiertagDates, capEnd, absenceDates);
     const { totalMinutes: ist } = await calculateIstForMonth(uid, y, m);
