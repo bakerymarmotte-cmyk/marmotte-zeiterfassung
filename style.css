@@ -132,6 +132,8 @@ select {
   font-family: var(--font-body);
   outline: none;
   transition: border-color 0.15s ease;
+  width: 100%;
+  min-width: 0;
 }
 .field input:focus, .field select:focus {
   border-color: var(--color-yellow);
