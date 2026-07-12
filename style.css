@@ -3,10 +3,10 @@
    ========================================================================== */
 :root {
   /* Farben – abgestimmt auf das Marmotte-Logo */
-  --color-bg: #1A1A1A;           /* Anthrazit, exakt wie Logo-Hintergrund */
-  --color-surface: #232323;
-  --color-surface-raised: #2A2A2A;
-  --color-border: #363636;
+  --color-bg: #2B3338;           /* Blaugrau – neuer App-Hintergrund */
+  --color-surface: #333E44;
+  --color-surface-raised: #3C4850;
+  --color-border: #4C5A63;
   --color-yellow: #FDD600;       /* Gold, exakt wie das "M" im Logo */
   --color-yellow-deep: #E0BC00;
   --color-text: #F5F5F0;

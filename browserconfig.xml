@@ -4,7 +4,7 @@
     <tile>
       <square150x150logo src="assets/tile-150.png"/>
       <square310x310logo src="assets/tile-310.png"/>
-      <TileColor>#1A1A1A</TileColor>
+      <TileColor>#2B3338</TileColor>
     </tile>
   </msapplication>
 </browserconfig>
