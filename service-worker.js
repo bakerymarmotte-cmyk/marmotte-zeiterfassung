@@ -2,7 +2,7 @@
 // Sorgt dafür, dass die App auf dem Smartphone als "installierbar" erkannt wird
 // und die Grundseiten auch bei kurzzeitig fehlender Verbindung geladen werden können.
 
-const CACHE_NAME = "marmotte-shell-v2";
+const CACHE_NAME = "marmotte-shell-v3";
 const SHELL_FILES = [
   "./index.html",
   "./style.css",
