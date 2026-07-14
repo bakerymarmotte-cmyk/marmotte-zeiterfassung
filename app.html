@@ -5,14 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Marmotte Zeiterfassung</title>
 <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
-<link rel="apple-touch-icon" sizes="120x120" href="assets/apple-touch-icon-120.png">
-<link rel="apple-touch-icon" sizes="152x152" href="assets/apple-touch-icon-152.png">
-<link rel="apple-touch-icon" sizes="167x167" href="assets/apple-touch-icon-167.png">
-<link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon-180.png">
+<link rel="apple-touch-icon" sizes="120x120" href="assets/appletouchicon120.png">
+<link rel="apple-touch-icon" sizes="152x152" href="assets/appletouchicon152.png">
+<link rel="apple-touch-icon" sizes="167x167" href="assets/appletouchicon167.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/appletouchicon180.png">
 <meta name="msapplication-config" content="browserconfig.xml">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#383E42">
-<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1A1A1A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Marmotte">
@@ -28,7 +27,17 @@
     padding: 16px 20px 8px;
     max-width: 640px; margin: 0 auto;
   }
-  .topbar .brand { font-family: var(--font-display); font-weight: 800; color: var(--color-yellow); font-size: 18px; }
+  .topbar .brand-name {
+    font-family: var(--font-display); font-weight: 800;
+    color: var(--color-yellow); font-size: 20px; line-height: 1.15;
+    letter-spacing: -0.01em;
+  }
+  .topbar .brand-sub {
+    font-size: 10.5px; font-weight: 600;
+    color: var(--color-text-muted);
+    letter-spacing: 0.22em; text-transform: uppercase;
+    margin-top: 2px;
+  }
   .topbar .who { display: flex; align-items: center; gap: 10px; }
   .topbar .who .name { font-size: 13.5px; color: var(--color-text-muted); }
   .topbar .logout-btn {
@@ -476,7 +485,10 @@
 <body>
 
 <div class="topbar">
-  <div class="brand">MARMOTTE</div>
+  <div class="brand">
+    <div class="brand-name">Marmotte</div>
+    <div class="brand-sub">Zeiterfassung</div>
+  </div>
   <div class="who">
     <span class="name" id="user-name-label"></span>
     <button class="logout-btn" id="logout-btn">Abmelden</button>
