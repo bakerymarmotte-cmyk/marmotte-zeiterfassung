@@ -2,7 +2,12 @@
 // Sorgt dafür, dass die App auf dem Smartphone als "installierbar" erkannt wird
 // und die Grundseiten auch bei kurzzeitig fehlender Verbindung geladen werden können.
 
-const CACHE_NAME = "marmotte-shell-v7";
+// Achtung: Cache Storage ist pro Origin, nicht pro App. Die Bestellungen-App
+// liegt auf derselben Origin und nutzt das Praefix "marmotte-bestellungen-".
+// Beim Aufraeumen darf daher nur geloescht werden, was zu DIESER App gehoert –
+// sonst raeumen sich die beiden Apps gegenseitig den Cache ab.
+const CACHE_PREFIX = "marmotte-shell-";
+const CACHE_NAME = `${CACHE_PREFIX}v7`;
 const DESIGN_ORIGIN = "https://bakerymarmotte-cmyk.github.io";
 const SHELL_FILES = [
   "./index.html",
@@ -22,7 +27,11 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter((k) => k.startsWith(CACHE_PREFIX) && k !== CACHE_NAME)
+          .map((k) => caches.delete(k))
+      )
     )
   );
   self.clients.claim();
