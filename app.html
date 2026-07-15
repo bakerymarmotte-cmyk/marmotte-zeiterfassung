@@ -11,40 +11,20 @@
 <link rel="apple-touch-icon" sizes="180x180" href="assets/appletouchicon180.png">
 <meta name="msapplication-config" content="browserconfig.xml">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1A1A1A">
+<meta name="theme-color" content="#383E42">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Marmotte">
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://bakerymarmotte-cmyk.github.io/marmotte-design/tokens.css">
+<link rel="stylesheet" href="https://bakerymarmotte-cmyk.github.io/marmotte-design/components.css">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
   body { padding-bottom: 0; }
 
-  .topbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 20px 8px;
-    max-width: 640px; margin: 0 auto;
-  }
-  .topbar .brand-name {
-    font-family: var(--font-display); font-weight: 800;
-    color: var(--color-yellow); font-size: 20px; line-height: 1.15;
-    letter-spacing: -0.01em;
-  }
-  .topbar .brand-sub {
-    font-size: 10.5px; font-weight: 600;
-    color: var(--color-text-muted);
-    letter-spacing: 0.22em; text-transform: uppercase;
-    margin-top: 2px;
-  }
-  .topbar .who { display: flex; align-items: center; gap: 10px; }
-  .topbar .who .name { font-size: 13.5px; color: var(--color-text); font-weight: 600; }
-  .topbar .logout-btn {
-    background: transparent; border: 1px solid var(--color-border); color: var(--color-text-muted);
-    border-radius: 8px; padding: 7px 12px; font-size: 12.5px;
-  }
-  .topbar .logout-btn:hover { border-color: var(--color-danger); color: var(--color-danger); }
+  /* Topbar (Header) kommt jetzt zentral aus marmotte-design/components.css */
 
   main { max-width: 640px; margin: 0 auto; padding: 8px 20px 60px; }
 
