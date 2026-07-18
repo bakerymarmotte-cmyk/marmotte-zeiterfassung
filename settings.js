@@ -245,7 +245,9 @@ function toISODate(date) {
 
 function formatDate(iso) {
   const [y, m, d] = iso.split("-");
-  return `${d}.${m}.${y}`;
+  const wochentage = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+  const wd = wochentage[new Date(Number(y), Number(m) - 1, Number(d)).getDay()];
+  return `${wd}. ${d}.${m}.${y}`;
 }
 
 function escapeHtml(str) {
