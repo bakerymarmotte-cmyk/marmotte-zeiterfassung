@@ -257,15 +257,21 @@ async function computeEmployeeReport(emp, vonISO, bisISO, allFerien, allAbw) {
   const start = new Date(vonISO);
   const end = new Date(bisISO);
 
-  const fetchPromises = [];
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const iso = toISODate(d);
-    fetchPromises.push(getDoc(doc(db, "timeentries", `${emp.uid}_${iso}`)).then((snap) => ({ iso, snap })));
-  }
-  const timeResults = await Promise.all(fetchPromises);
+  // Zeiteinträge des Zeitraums in EINER Abfrage laden (statt pro Tag ein Einzelabruf).
+  const timeSnap = await getDocs(
+    query(
+      collection(db, "timeentries"),
+      where("uid", "==", emp.uid),
+      where("date", ">=", vonISO),
+      where("date", "<=", bisISO)
+    )
+  );
   const timeMap = {};
-  timeResults.forEach(({ iso, snap }) => {
-    timeMap[iso] = snap.exists() && Array.isArray(snap.data().shifts) ? snap.data().shifts : [];
+  timeSnap.forEach((docSnap) => {
+    const data = docSnap.data();
+    if (data && data.date) {
+      timeMap[data.date] = Array.isArray(data.shifts) ? data.shifts : [];
+    }
   });
 
   const stellenprozent = emp.stellenprozent || 100;
@@ -458,15 +464,22 @@ async function renderDetailList() {
   const listEl = document.getElementById("detail-shift-list");
   listEl.innerHTML = '<div class="hint-text">Lädt…</div>';
   const { emp, von, bis } = detailContext;
-  const start = new Date(von);
-  const end = new Date(bis);
 
-  const fetches = [];
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const iso = toISODate(d);
-    fetches.push(getDoc(doc(db, "timeentries", `${emp.uid}_${iso}`)).then((snap) => ({ iso, snap })));
-  }
-  const results = await Promise.all(fetches);
+  // Zeiteinträge des Zeitraums in EINER Abfrage laden, nach Datum sortiert.
+  const timeSnap = await getDocs(
+    query(
+      collection(db, "timeentries"),
+      where("uid", "==", emp.uid),
+      where("date", ">=", von),
+      where("date", "<=", bis),
+      orderBy("date")
+    )
+  );
+  const results = [];
+  timeSnap.forEach((docSnap) => {
+    const data = docSnap.data();
+    if (data && data.date) results.push({ iso: data.date, snap: docSnap });
+  });
 
   listEl.innerHTML = "";
   let any = false;

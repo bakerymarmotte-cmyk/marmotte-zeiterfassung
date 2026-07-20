@@ -339,14 +339,27 @@ async function calculateIstForMonth(uid, year, month) {
   const monthEnd = new Date(year, month + 1, 0);
   const todayISO = toISODate(new Date());
 
-  const fetches = [];
-  for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate() + 1)) {
-    const iso = toISODate(d);
-    if (iso > todayISO) break;
-    fetches.push(getDoc(doc(db, "timeentries", `${uid}_${iso}`)).then((snap) => ({ iso, snap })));
-  }
+  // Alle Zeiteinträge des Monats in EINER Abfrage laden (statt bis zu 31 Einzelabrufe).
+  // Das End-Datum wird auf heute begrenzt, damit zukünftige Tage keine Reads verursachen.
+  const startISO = toISODate(monthStart);
+  let endISO = toISODate(monthEnd);
+  if (endISO > todayISO) endISO = todayISO;
 
-  const results = await Promise.all(fetches);
+  const results = [];
+  if (startISO <= endISO) {
+    const timeSnap = await getDocs(
+      query(
+        collection(db, "timeentries"),
+        where("uid", "==", uid),
+        where("date", ">=", startISO),
+        where("date", "<=", endISO)
+      )
+    );
+    timeSnap.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data && data.date) results.push({ iso: data.date, snap: docSnap });
+    });
+  }
   let totalMinutes = 0;
   const perDay = {};
 
