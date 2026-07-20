@@ -679,15 +679,24 @@ async function computeYearlyBreakdown(emp, year, allFerien, allAbw) {
   const myFerien = allFerien.filter((f) => f.uid === emp.uid);
   const myAbw = allAbw.filter((a) => a.uid === emp.uid);
 
-  const fetchPromises = [];
-  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-    const iso = toISODate(d);
-    fetchPromises.push(getDoc(doc(db, "timeentries", `${emp.uid}_${iso}`)).then((snap) => ({ iso, snap })));
-  }
-  const timeResults = await Promise.all(fetchPromises);
+  // Alle Zeiteinträge des Jahres in EINER Abfrage laden (statt 365 Einzelabrufe).
+  // Es entstehen nur Reads für tatsächlich vorhandene Einträge.
+  const startISO = `${year}-01-01`;
+  const endISO = `${year}-12-31`;
+  const timeSnap = await getDocs(
+    query(
+      collection(db, "timeentries"),
+      where("uid", "==", emp.uid),
+      where("date", ">=", startISO),
+      where("date", "<=", endISO)
+    )
+  );
   const timeMap = {};
-  timeResults.forEach(({ iso, snap }) => {
-    timeMap[iso] = snap.exists() && Array.isArray(snap.data().shifts) ? snap.data().shifts : [];
+  timeSnap.forEach((docSnap) => {
+    const data = docSnap.data();
+    if (data && data.date) {
+      timeMap[data.date] = Array.isArray(data.shifts) ? data.shifts : [];
+    }
   });
 
   const stellenprozent = emp.stellenprozent || 100;
