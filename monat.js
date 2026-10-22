@@ -175,7 +175,7 @@ export function initMonatTab(session) {
           subContent = `${style ? style.icon + " " : ""}${escapeHtml(absence.label)}`;
           if (style) {
             subStyle = ` style="color:${style.color};"`;
-            rowStyle = ` style="border:1px solid ${style.color}; border-radius: var(--radius-md); padding: 12px 10px; margin-bottom: 6px; border-bottom-width: 1px;"`;
+            rowStyle = ` style="border:1px solid ${style.color}; border-radius: var(--m-radius-md); padding: 12px 10px; margin-bottom: 6px; border-bottom-width: 1px;"`;
           }
         }
         rows.push(`
