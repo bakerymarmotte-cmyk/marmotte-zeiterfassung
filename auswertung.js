@@ -7,17 +7,17 @@ const typLabels = {
 };
 
 const statusStyles = {
-  unterwegs: { icon: "🚗", color: "#5AC8E0", label: "Auf dem Weg" },
-  arbeitet: { icon: "🟢", color: "#4CAF7D", label: "Eingestempelt" },
-  pause: { icon: "☕", color: "#FDD600", label: "Pause" },
-  feierabend: { icon: "🍺", color: "#9E9E9E", label: "Feierabend" },
-  frei: { icon: "💤", color: "#6b6b6b", label: "Frei" },
-  ferien: { icon: "🌴", color: "#4CAF7D", label: "Ferien" },
-  krank: { icon: "🤒", color: "#E5484D", label: "Krank" },
-  unfall: { icon: "🚑", color: "#E8792A", label: "Unfall" },
-  militaer: { icon: "🎖️", color: "#8A9A5B", label: "Militär" },
-  schwangerschaft: { icon: "🤰", color: "#B084D0", label: "Schwangerschaft" },
-  bezahlter_frei_tag: { icon: "🎉", color: "#4A9FE0", label: "Bezahlter Frei Tag" },
+  unterwegs: { icon: '<i data-icon="car" data-size="16"></i>', color: "var(--live-unterwegs)", label: "Auf dem Weg" },
+  arbeitet: { icon: '<i data-icon="play" data-size="16"></i>', color: "var(--live-arbeitet)", label: "Eingestempelt" },
+  pause: { icon: '<i data-icon="coffee" data-size="16"></i>', color: "var(--live-pause)", label: "Pause" },
+  feierabend: { icon: '<i data-icon="beer" data-size="16"></i>', color: "var(--live-feierabend)", label: "Feierabend" },
+  frei: { icon: '<i data-icon="moon" data-size="16"></i>', color: "var(--live-frei)", label: "Frei" },
+  ferien: { icon: '<i data-icon="tree-palm" data-size="16"></i>', color: "var(--abw-ferien)", label: "Ferien" },
+  krank: { icon: '<i data-icon="thermometer" data-size="16"></i>', color: "var(--abw-krank)", label: "Krank" },
+  unfall: { icon: '<i data-icon="ambulance" data-size="16"></i>', color: "var(--abw-unfall)", label: "Unfall" },
+  militaer: { icon: '<i data-icon="shield" data-size="16"></i>', color: "var(--abw-militaer)", label: "Militär" },
+  schwangerschaft: { icon: '<i data-icon="baby" data-size="16"></i>', color: "var(--abw-schwangerschaft)", label: "Schwangerschaft" },
+  bezahlter_frei_tag: { icon: '<i data-icon="party-popper" data-size="16"></i>', color: "var(--abw-bezahlt)", label: "Bezahlter Frei Tag" },
 };
 
 export function initAuswertungTab(session) {
@@ -97,7 +97,7 @@ function setupLiveStatus() {
       item.className = "status-item";
       item.style.border = `1px solid ${style.color}`;
       item.innerHTML = `
-        <div class="name-row">${style.icon} <span>${escapeHtml(emp.name || "")}</span></div>
+        <div class="name-row"><span style="color:${style.color}; display:inline-flex;">${style.icon}</span> <span>${escapeHtml(emp.name || "")}</span></div>
         <div class="status-label" style="color:${style.color};">${style.label}</div>
         ${status.sub ? `<div class="status-time">${escapeHtml(status.sub)}</div>` : ""}
       `;
@@ -398,7 +398,7 @@ function calculateFeriensaldoBis(profile, general, feiertagDates, ferienDatesAll
 }
 
 const abwLabelsShort = { krank: "Krank", unfall: "Unfall", militaer: "Militär", schwangerschaft: "Schwang.", bezahlter_frei_tag: "Frei Tag" };
-const abwIconsShort = { krank: "🤒", unfall: "🚑", militaer: "🎖️", schwangerschaft: "🤰", bezahlter_frei_tag: "🎉" };
+const abwIconsShort = { krank: '<i data-icon="thermometer" data-size="14"></i>', unfall: '<i data-icon="ambulance" data-size="14"></i>', militaer: '<i data-icon="shield" data-size="14"></i>', schwangerschaft: '<i data-icon="baby" data-size="14"></i>', bezahlter_frei_tag: '<i data-icon="party-popper" data-size="14"></i>' };
 
 function renderEmployeeCard(emp, report, von, bis, showPdfButton = true, showDetailButton = true) {
   const card = document.createElement("div");
@@ -427,7 +427,7 @@ function renderEmployeeCard(emp, report, von, bis, showPdfButton = true, showDet
     </div>
     <div class="uebersicht-actions">
       ${showDetailButton ? '<button class="btn btn-secondary" data-detail>Detail</button>' : ""}
-      ${showPdfButton ? '<button class="btn btn-primary" data-pdf>📄 PDF</button>' : ""}
+      ${showPdfButton ? '<button class="btn btn-primary" data-pdf><i data-icon="file-text" data-size="16"></i> PDF</button>' : ""}
     </div>
   `;
 
@@ -497,8 +497,8 @@ async function renderDetailList() {
           <div class="sub">${range}${pausenText ? " · " + pausenText : ""}</div>
         </div>
         <div class="detail-shift-actions">
-          <button class="icon-btn" data-edit-iso="${iso}" data-edit-idx="${idx}">✏️</button>
-          <button class="icon-btn icon-btn-danger" data-del-iso="${iso}" data-del-idx="${idx}">🗑️</button>
+          <button class="icon-btn" data-edit-iso="${iso}" data-edit-idx="${idx}"><i data-icon="pencil" data-size="15"></i></button>
+          <button class="icon-btn icon-btn-danger" data-del-iso="${iso}" data-del-idx="${idx}"><i data-icon="trash-2" data-size="15"></i></button>
         </div>`;
       listEl.appendChild(row);
     });

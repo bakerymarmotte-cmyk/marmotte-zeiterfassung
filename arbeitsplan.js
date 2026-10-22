@@ -6,12 +6,12 @@ import {
 const ABTEILUNGEN = ["Bäckerei", "Tearoom&Laden", "Dorfladen"];
 
 const absenceStyles = {
-  ferien: { icon: "🌴", color: "#4CAF7D" },
-  krank: { icon: "🤒", color: "#E5484D" },
-  unfall: { icon: "🚑", color: "#E8792A" },
-  militaer: { icon: "🎖️", color: "#8A9A5B" },
-  schwangerschaft: { icon: "🤰", color: "#B084D0" },
-  bezahlter_frei_tag: { icon: "🎉", color: "#4A9FE0" },
+  ferien: { icon: '<i data-icon="tree-palm" data-size="16"></i>', color: "var(--abw-ferien)" },
+  krank: { icon: '<i data-icon="thermometer" data-size="16"></i>', color: "var(--abw-krank)" },
+  unfall: { icon: '<i data-icon="ambulance" data-size="16"></i>', color: "var(--abw-unfall)" },
+  militaer: { icon: '<i data-icon="shield" data-size="16"></i>', color: "var(--abw-militaer)" },
+  schwangerschaft: { icon: '<i data-icon="baby" data-size="16"></i>', color: "var(--abw-schwangerschaft)" },
+  bezahlter_frei_tag: { icon: '<i data-icon="party-popper" data-size="16"></i>', color: "var(--abw-bezahlt)" },
 };
 const typLabels = {
   krank: "Krank", unfall: "Unfall", militaer: "Militär",
@@ -131,7 +131,7 @@ function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, a
       const style = absenceStyles[abs.type] || {};
       const card = document.createElement("div");
       card.className = "shift-card absence-card";
-      card.style.border = `1px solid ${style.color || "#666"}`;
+      card.style.border = `1px solid ${style.color || "var(--m-border)"}`;
       card.innerHTML = `
         <div class="shift-card-main">
           <span>${style.icon || ""} <strong>${escapeHtml(abs.name)}</strong></span>
@@ -154,7 +154,7 @@ function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, a
       card.className = "shift-card freiwunsch-card";
       card.innerHTML = `
         <div class="shift-card-main">
-          <span>☁️ <strong>${escapeHtml(f.name)}</strong></span>
+          <span><i data-icon="cloud" data-size="16"></i> <strong>${escapeHtml(f.name)}</strong></span>
         </div>
         <div class="shift-card-sub">Frei-Wunsch${f.bemerkung ? ` · ${escapeHtml(f.bemerkung)}` : ""}</div>
       `;
@@ -185,8 +185,8 @@ function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, a
           </div>
           ${editable ? `
             <div class="shift-card-actions">
-              <button class="icon-btn" data-edit="${s.id}" title="Bearbeiten">✏️</button>
-              <button class="icon-btn icon-btn-danger" data-delete="${s.id}" title="Löschen">🗑️</button>
+              <button class="icon-btn" data-edit="${s.id}" title="Bearbeiten"><i data-icon="pencil" data-size="15"></i></button>
+              <button class="icon-btn icon-btn-danger" data-delete="${s.id}" title="Löschen"><i data-icon="trash-2" data-size="15"></i></button>
             </div>` : ""}
         </div>
       `;

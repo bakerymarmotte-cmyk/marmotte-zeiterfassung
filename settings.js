@@ -89,7 +89,7 @@ export function initSettingsTab(session) {
       <div class="holiday-row" data-date="${h.date}">
         <span class="date">${formatDate(h.date)}</span>
         <span style="flex:1; margin-left:12px;">${escapeHtml(h.name)}</span>
-        <button class="remove-btn" data-remove="${h.date}|${escapeAttr(h.name)}">✕</button>
+        <button class="remove-btn" data-remove="${h.date}|${escapeAttr(h.name)}" title="Entfernen"><i data-icon="x" data-size="16"></i></button>
       </div>`
       )
       .join("");
@@ -148,7 +148,7 @@ export function initSettingsTab(session) {
       <div class="feriensperre-row" data-von="${s.von}" data-bis="${s.bis}">
         <span class="range">${formatDate(s.von)} – ${formatDate(s.bis)}</span>
         <span class="name">${escapeHtml(s.name || "")}</span>
-        <button class="remove-btn" data-remove="${s.von}|${s.bis}|${escapeAttr(s.name || "")}">✕</button>
+        <button class="remove-btn" data-remove="${s.von}|${s.bis}|${escapeAttr(s.name || "")}" title="Entfernen"><i data-icon="x" data-size="16"></i></button>
       </div>`
       )
       .join("");

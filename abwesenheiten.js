@@ -153,8 +153,8 @@ export function initAbwesenheitenTab(session) {
               ${a.bemerkung ? `<div class="request-bemerkung">"${escapeHtml(a.bemerkung)}"</div>` : ""}
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
-              <button class="icon-btn" data-edit="${d.id}" title="Bearbeiten">✏️</button>
-              <button class="icon-btn icon-btn-danger" data-id="${d.id}" title="Löschen">🗑️</button>
+              <button class="icon-btn" data-edit="${d.id}" title="Bearbeiten"><i data-icon="pencil" data-size="15"></i></button>
+              <button class="icon-btn icon-btn-danger" data-id="${d.id}" title="Löschen"><i data-icon="trash-2" data-size="15"></i></button>
             </div>
           </div>
         </div>`;
@@ -210,15 +210,15 @@ export function initAbwesenheitenTab(session) {
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
               <span class="status-badge ${r.status}">${statusLabel}</span>
-              <button class="small-remove-btn" data-delete="${d.id}" title="Löschen">✕</button>
+              <button class="small-remove-btn" data-delete="${d.id}" title="Löschen"><i data-icon="x" data-size="16"></i></button>
             </div>
           </div>
           ${r.bemerkung ? `<div class="request-bemerkung">"${escapeHtml(r.bemerkung)}"</div>` : ""}
           ${r.begruendung ? `<div class="request-begruendung">Begründung: ${escapeHtml(r.begruendung)}</div>` : ""}
           ${r.status === "offen" ? `
             <div class="request-actions">
-              <button class="btn btn-approve" data-action="approve" data-id="${d.id}">✓ Genehmigen</button>
-              <button class="btn btn-reject" data-action="reject" data-id="${d.id}">✕ Ablehnen</button>
+              <button class="btn btn-approve" data-action="approve" data-id="${d.id}"><i data-icon="check" data-size="16"></i> Genehmigen</button>
+              <button class="btn btn-reject" data-action="reject" data-id="${d.id}"><i data-icon="x" data-size="16"></i> Ablehnen</button>
             </div>` : ""}
         </div>`;
       })

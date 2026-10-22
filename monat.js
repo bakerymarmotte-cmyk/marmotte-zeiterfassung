@@ -194,12 +194,12 @@ export function initMonatTab(session) {
 // Lädt genehmigte Ferien und eingetragene Abwesenheiten für einen Mitarbeiter
 // und gibt eine Map von "YYYY-MM-DD" -> Anzeige-Label zurück.
 const absenceStyles = {
-  ferien: { icon: "🌴", color: "#4CAF7D" },
-  krank: { icon: "🤒", color: "#E5484D" },
-  unfall: { icon: "🚑", color: "#E8792A" },
-  militaer: { icon: "🎖️", color: "#8A9A5B" },
-  schwangerschaft: { icon: "🤰", color: "#B084D0" },
-  bezahlter_frei_tag: { icon: "🎉", color: "#4A9FE0" },
+  ferien: { icon: '<i data-icon="tree-palm" data-size="16"></i>', color: "var(--abw-ferien)" },
+  krank: { icon: '<i data-icon="thermometer" data-size="16"></i>', color: "var(--abw-krank)" },
+  unfall: { icon: '<i data-icon="ambulance" data-size="16"></i>', color: "var(--abw-unfall)" },
+  militaer: { icon: '<i data-icon="shield" data-size="16"></i>', color: "var(--abw-militaer)" },
+  schwangerschaft: { icon: '<i data-icon="baby" data-size="16"></i>', color: "var(--abw-schwangerschaft)" },
+  bezahlter_frei_tag: { icon: '<i data-icon="party-popper" data-size="16"></i>', color: "var(--abw-bezahlt)" },
 };
 
 async function loadAbsenceDates(uid) {

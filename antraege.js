@@ -148,7 +148,7 @@ export function initAntraegeTab(session) {
               </div>
               <div style="display:flex; align-items:center; gap:8px;">
                 <span class="status-badge ${r.status}">${statusLabels[r.status] || r.status}</span>
-                ${r.status === "offen" ? `<button class="small-remove-btn" data-id="${d.id}">✕</button>` : ""}
+                ${r.status === "offen" ? `<button class="small-remove-btn" data-id="${d.id}" title="Löschen"><i data-icon="x" data-size="16"></i></button>` : ""}
               </div>
             </div>
             ${r.bemerkung ? `<div class="request-bemerkung">"${escapeHtml(r.bemerkung)}"</div>` : ""}
@@ -225,7 +225,7 @@ export function initAntraegeTab(session) {
                 <div class="request-range">${formatDate(r.datum)}</div>
                 ${r.bemerkung ? `<div class="request-bemerkung">"${escapeHtml(r.bemerkung)}"</div>` : ""}
               </div>
-              <button class="small-remove-btn" data-id="${d.id}">✕</button>
+              <button class="small-remove-btn" data-id="${d.id}" title="Löschen"><i data-icon="x" data-size="16"></i></button>
             </div>
           </div>`;
         })

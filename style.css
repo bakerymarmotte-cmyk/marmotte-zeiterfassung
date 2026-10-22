@@ -1,7 +1,7 @@
 /* ==========================================================================
-   Marmotte Zeiterfassung – App-spezifisches Styling
-   Farben, Fonts, Radien und Schatten kommen jetzt zentral aus
-   marmotte-design/tokens.css (muss vor dieser Datei eingebunden sein).
+   Marmotte Zeiterfassung – App-spezifisches Styling (neues Design)
+   Farben, Schrift und Hell/Dunkel kommen aus marmotte-design/marmotte.css
+   (muss vor dieser Datei eingebunden sein).
    ========================================================================== */
 
 * { box-sizing: border-box; }
@@ -9,41 +9,35 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-family: var(--font-body);
+  background: var(--m-bg);
+  color: var(--m-text);
+  font-family: var(--m-font);
   min-height: 100vh;
 }
 
-body {
-  background-image:
-    radial-gradient(circle at 85% -10%, rgba(244, 193, 15, 0.10), transparent 45%),
-    radial-gradient(circle at -10% 110%, rgba(244, 193, 15, 0.06), transparent 40%);
-}
-
-a { color: var(--color-yellow); }
+a { color: var(--m-accent-text); }
 
 button {
-  font-family: var(--font-body);
+  font-family: inherit;
   cursor: pointer;
 }
 
 select {
-  background: var(--color-surface-raised);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
+  background: var(--m-surface-2);
+  color: var(--m-text);
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-sm);
   padding: 4px 8px;
-  font-family: var(--font-body);
+  font-family: inherit;
   font-size: 13.5px;
 }
 
-::selection { background: var(--color-yellow); color: #121212; }
+::selection { background: var(--m-chip-bg); color: var(--m-chip-fg); }
 
 /* Scrollbar dezent */
 ::-webkit-scrollbar { width: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 8px; }
+::-webkit-scrollbar-thumb { background: var(--m-border); border-radius: 8px; }
 
 /* ==========================================================================
    Layout-Helfer
@@ -51,16 +45,17 @@ select {
 .centered-screen {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 16px;
 }
 
 .card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
+  background: var(--m-card);
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-lg);
+  box-shadow: var(--m-shadow);
 }
 
 /* ==========================================================================
@@ -76,9 +71,9 @@ select {
   fill: none;
   stroke-width: 4;
 }
-.stopwatch-ring .track { stroke: var(--color-border); }
+.stopwatch-ring .track { stroke: var(--m-border); }
 .stopwatch-ring .progress {
-  stroke: var(--color-yellow);
+  stroke: var(--m-accent);
   stroke-linecap: round;
   transition: stroke-dashoffset 1s linear;
 }
@@ -89,32 +84,31 @@ select {
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 18px;
+  gap: 4px;
+  margin-bottom: 14px;
   text-align: left;
 }
 .field label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--m-muted);
 }
 .field input, .field select {
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 12px 14px;
-  color: var(--color-text);
-  font-size: 15px;
-  font-family: var(--font-body);
+  background: var(--m-surface-2);
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-sm);
+  padding: 11px 12px;
+  color: var(--m-text);
+  font-size: 16px;          /* 16px verhindert das Hineinzoomen auf dem iPhone */
+  font-family: inherit;
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
   width: 100%;
   min-width: 0;
 }
 .field input:focus, .field select:focus {
-  border-color: var(--color-yellow);
+  border-color: var(--m-accent);
+  box-shadow: 0 0 0 3px var(--m-chip-bg);
 }
 
 .btn {
@@ -122,45 +116,92 @@ select {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: none;
-  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  border-radius: var(--m-radius-md);
   padding: 13px 20px;
-  font-weight: 700;
-  font-size: 15px;
-  transition: transform 0.1s ease, filter 0.15s ease;
+  font-weight: 600;
+  font-size: 14px;
+  transition: transform 0.1s ease, filter 0.15s ease, border-color 0.15s ease;
 }
 .btn:active { transform: scale(0.98); }
 .btn-primary {
-  background: var(--color-yellow);
-  color: #1a1400;
+  background: var(--m-accent);
+  color: var(--m-accent-fg);
 }
-.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:hover { filter: brightness(1.1); }
 .btn-primary:disabled {
-  background: var(--color-border);
-  color: var(--color-text-muted);
+  background: var(--m-card-soft);
+  color: var(--m-faint);
+  border-color: var(--m-border);
   cursor: not-allowed;
 }
 .btn-secondary {
-  background: transparent;
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
+  background: var(--m-card);
+  color: var(--m-text);
+  border-color: var(--m-border);
 }
-.btn-secondary:hover { border-color: var(--color-yellow); }
+.btn-secondary:hover { border-color: var(--m-accent); }
 .btn-danger {
   background: transparent;
-  color: var(--color-danger);
-  border: 1px solid rgba(229, 72, 77, 0.4);
+  color: var(--m-danger);
+  border-color: var(--m-danger);
 }
 
 .error-text {
-  color: var(--color-danger);
+  color: var(--m-danger);
   font-size: 13.5px;
-  margin-top: -8px;
-  margin-bottom: 14px;
-  min-height: 18px;
+  margin: 0 0 12px;
 }
+.error-text:empty { margin: 0; }
+form .btn { margin-top: 6px; }
 
 .hint-text {
-  color: var(--color-text-muted);
+  color: var(--m-muted);
   font-size: 13px;
+}
+
+/* ==========================================================================
+   Login- und Passwort-Seite: Logo-Block und Umschalter
+   ========================================================================== */
+.theme-row { width: 100%; display: flex; justify-content: flex-end; margin-bottom: 12px; }
+.brand-col { display: flex; flex-direction: column; align-items: center; margin-bottom: 28px; }
+.brand-col .brand-logo {
+  width: 64px; height: 64px; border-radius: var(--m-radius-lg);
+  background: var(--m-accent); color: #fef3c7;
+  display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
+}
+.brand-col .brand-title { font-size: 24px; font-weight: 700; color: var(--m-accent); letter-spacing: -0.01em; line-height: 1.2; }
+.brand-col .brand-sub { font-size: 14px; color: var(--m-muted); margin-top: 2px; }
+
+/* ==========================================================================
+   Farben der Abwesenheitsarten und Live-Status
+   Jede Art behält ihre Farbe; pro Modus eine passende Abstufung,
+   damit die Schrift auf hellem wie dunklem Grund lesbar bleibt.
+   ========================================================================== */
+:root {
+  --abw-ferien: #047857;          /* grün */
+  --abw-krank: #dc2626;           /* rot */
+  --abw-unfall: #ea580c;          /* orange */
+  --abw-militaer: #5f6f2a;        /* oliv */
+  --abw-schwangerschaft: #9333ea; /* violett */
+  --abw-bezahlt: #2563eb;         /* blau */
+  --live-unterwegs: #0891b2;      /* türkis */
+  --live-arbeitet: #047857;       /* grün */
+  --live-pause: #d97706;          /* bernstein */
+  --live-feierabend: #78716c;     /* grau */
+  --live-frei: #a8a29e;           /* hellgrau */
+}
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --abw-ferien: #4CAF7D; --abw-krank: #E5484D; --abw-unfall: #E8792A; --abw-militaer: #9AAB68;
+    --abw-schwangerschaft: #B084D0; --abw-bezahlt: #4A9FE0;
+    --live-unterwegs: #5AC8E0; --live-arbeitet: #4CAF7D; --live-pause: #fbbf24;
+    --live-feierabend: #a8a29e; --live-frei: #78716c;
+  }
+}
+:root.dark {
+  --abw-ferien: #4CAF7D; --abw-krank: #E5484D; --abw-unfall: #E8792A; --abw-militaer: #9AAB68;
+  --abw-schwangerschaft: #B084D0; --abw-bezahlt: #4A9FE0;
+  --live-unterwegs: #5AC8E0; --live-arbeitet: #4CAF7D; --live-pause: #fbbf24;
+  --live-feierabend: #a8a29e; --live-frei: #78716c;
 }

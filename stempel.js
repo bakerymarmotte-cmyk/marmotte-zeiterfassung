@@ -134,8 +134,8 @@ export function initStempelTab(session) {
       kommenRow.style.display = "flex";
       kommenEl.textContent = formatTime(status.shift.start);
       actionsEl.innerHTML = `
-        <button class="btn btn-yellow-outline" data-action="pause">⏸ Pause</button>
-        <button class="btn btn-danger-solid" data-action="gehen">✕ Ausstempeln</button>
+        <button class="btn btn-yellow-outline" data-action="pause"><i data-icon="pause" data-size="16"></i> Pause</button>
+        <button class="btn btn-danger-solid" data-action="gehen"><i data-icon="log-out" data-size="16"></i> Ausstempeln</button>
       `;
     } else if (status.state === "onbreak") {
       dotEl.classList.add("dot-break");
@@ -144,7 +144,7 @@ export function initStempelTab(session) {
       kommenEl.textContent = formatTime(status.shift.start);
       pauseRow.style.display = "flex";
       pauseSinceEl.textContent = formatTime(status.shift.pausen[status.shift.pausen.length - 1].start);
-      actionsEl.innerHTML = `<button class="btn btn-primary" data-action="pause-beenden">▶ Pause beenden</button>`;
+      actionsEl.innerHTML = `<button class="btn btn-primary" data-action="pause-beenden"><i data-icon="play" data-size="16"></i> Pause beenden</button>`;
     }
 
     actionsEl.querySelectorAll("button").forEach((btn) => {

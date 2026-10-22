@@ -5,20 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Marmotte Zeiterfassung</title>
 <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
-<link rel="apple-touch-icon" sizes="120x120" href="assets/appletouchicon120.png">
-<link rel="apple-touch-icon" sizes="152x152" href="assets/appletouchicon152.png">
-<link rel="apple-touch-icon" sizes="167x167" href="assets/appletouchicon167.png">
-<link rel="apple-touch-icon" sizes="180x180" href="assets/appletouchicon180.png">
+<link rel="apple-touch-icon" sizes="120x120" href="assets/apple-touch-icon-120.png">
+<link rel="apple-touch-icon" sizes="152x152" href="assets/apple-touch-icon-152.png">
+<link rel="apple-touch-icon" sizes="167x167" href="assets/apple-touch-icon-167.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon-180.png">
 <meta name="msapplication-config" content="browserconfig.xml">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#383E42">
+<meta name="theme-color" content="#f5f4f2">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Marmotte">
-<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://bakerymarmotte-cmyk.github.io/marmotte-design/tokens.css">
-<link rel="stylesheet" href="https://bakerymarmotte-cmyk.github.io/marmotte-design/components.css">
+<link rel="stylesheet" href="https://bakerymarmotte-cmyk.github.io/marmotte-design/marmotte.css">
 <link rel="stylesheet" href="style.css">
+<script src="https://bakerymarmotte-cmyk.github.io/marmotte-design/theme.js"></script>
+<script src="https://bakerymarmotte-cmyk.github.io/marmotte-design/icons.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
@@ -26,7 +26,7 @@
 
   /* Topbar (Header) kommt jetzt zentral aus marmotte-design/components.css */
 
-  main { max-width: 640px; margin: 0 auto; padding: 8px 20px 60px; }
+  main { max-width: 640px; margin: 0 auto; padding: 12px 16px 60px; }
 
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
@@ -42,24 +42,28 @@
   }
 
   /* Obere Hauptnavigation */
+  .nav-wrap {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--m-bg);
+    padding: 4px 16px 8px;
+  }
   .bottom-nav {
-    position: sticky; top: 0; left: 0; right: 0;
-    background: var(--color-surface);
-    border-bottom: 1px solid var(--color-border);
-    display: flex;
-    max-width: 640px; margin: 0 auto;
-    z-index: 50;
+    display: flex; gap: 4px;
+    max-width: 640px; margin: 0 auto; padding: 4px;
+    background: var(--m-card); border: 1px solid var(--m-border);
+    border-radius: var(--m-radius-lg); box-shadow: var(--m-shadow);
   }
   .bottom-nav button {
-    flex: 1;
-    background: none; border: none; color: var(--color-text-muted);
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-    padding: 10px 4px 10px;
-    font-size: 11px; font-family: var(--font-body); font-weight: 600;
-    border-bottom: 2px solid transparent;
+    flex: 1; min-width: 0;
+    background: none; border: none; color: var(--m-muted);
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 8px 2px 7px; border-radius: var(--m-radius-md);
+    font-size: 11px; font-weight: 500;
+    transition: background 0.15s ease, color 0.15s ease;
   }
-  .bottom-nav button .icon { font-size: 20px; line-height: 1; }
-  .bottom-nav button.active { color: var(--color-yellow); border-bottom-color: var(--color-yellow); }
+  .bottom-nav button .icon { display: flex; }
+  .bottom-nav button .icon svg { width: 20px; height: 20px; }
+  .bottom-nav button.active { background: var(--m-chip-bg); color: var(--m-chip-fg); }
 
   /* Sekundäre Tabs (z.B. innerhalb Admin/Leitung) */
   .subtabs {
@@ -69,16 +73,17 @@
   .subtabs::-webkit-scrollbar { display: none; }
   .subtabs button {
     white-space: nowrap;
-    background: var(--color-surface); border: 1px solid var(--color-border);
-    color: var(--color-text-muted);
-    border-radius: 999px; padding: 8px 16px; font-size: 13px; font-weight: 600;
+    background: var(--m-card); border: 1px solid var(--m-border);
+    color: var(--m-muted);
+    border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 500;
   }
-  .subtabs button.active { background: var(--color-yellow); color: #1a1400; border-color: var(--color-yellow); }
+  .subtabs button { display: inline-flex; align-items: center; gap: 6px; }
+  .subtabs button.active { background: var(--m-accent); color: var(--m-accent-fg); border-color: var(--m-accent); }
 
   .subpanel { display: none; }
   .subpanel.active { display: block; }
 
-  h2.section-title { font-size: 19px; margin: 4px 0 18px; }
+  h2.section-title, h3.section-title { font-size: 17px; font-weight: 600; margin: 4px 0 16px; }
 
   /* Team-Liste */
   .employee-list { display: flex; flex-direction: column; gap: 10px; }
@@ -87,7 +92,7 @@
     border-radius: var(--radius-md); padding: 14px 16px;
     cursor: pointer;
   }
-  .employee-item:hover { border-color: var(--color-yellow); }
+  .employee-item:hover { border-color: var(--m-accent); }
   .employee-item .item-line1 { font-weight: 700; font-size: 15px; }
   .employee-item .item-line2 {
     display: flex; align-items: center; justify-content: space-between;
@@ -99,9 +104,9 @@
     padding: 3px 9px; border-radius: 999px; background: var(--color-surface-raised); color: var(--color-text-muted);
     flex-shrink: 0;
   }
-  .badge.role-admin { background: rgba(253,214,0,0.15); color: var(--color-yellow); }
-  .badge.role-leitung { background: rgba(76,175,125,0.15); color: var(--color-success); }
-  .badge.role-mitarbeiter { background: rgba(74,159,224,0.15); color: #4A9FE0; }
+  .badge.role-admin { background: var(--m-chip-bg); color: var(--m-chip-fg); }
+  .badge.role-leitung { background: var(--m-t-amber-bg); color: var(--m-t-amber-fg); }
+  .badge.role-mitarbeiter { background: var(--m-t-sky-bg); color: var(--m-t-sky-fg); }
   .employee-item.is-inactive { opacity: 0.6; }
   .team-filter-row { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 14px; }
   .team-section-label {
@@ -112,25 +117,25 @@
 
   .fab {
     position: fixed; bottom: 24px; right: 20px;
-    background: var(--color-yellow); color: #1a1400;
+    background: var(--m-accent); color: var(--m-accent-fg);
     width: 54px; height: 54px; border-radius: 50%;
-    border: none; font-size: 28px; font-weight: 700;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+    border: none; font-size: 28px; font-weight: 500;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.2);
     z-index: 40;
   }
 
   /* Modal */
   .modal-backdrop {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: none; position: fixed; inset: 0; background: rgba(12,10,9,0.5);
     align-items: flex-end; justify-content: center; z-index: 100;
   }
   .modal-backdrop.active { display: flex; }
   .modal-sheet {
-    background: var(--color-surface); border-radius: 20px 20px 0 0;
+    background: var(--m-card); border-radius: 20px 20px 0 0; border: 1px solid var(--m-border); border-bottom: none;
     width: 100%; max-width: 640px; max-height: 88vh; overflow-y: auto;
     padding: 24px 22px calc(24px + env(safe-area-inset-bottom, 0));
   }
-  .modal-sheet h3 { margin: 0 0 20px; font-size: 18px; }
+  .modal-sheet h3 { margin: 0 0 18px; font-size: 17px; font-weight: 600; }
   .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .modal-actions { display: flex; gap: 10px; margin-top: 8px; }
   .modal-actions .btn { flex: 1; }
@@ -139,7 +144,7 @@
     background: var(--color-surface); border: 1px solid var(--color-border);
     border-radius: var(--radius-md); padding: 18px 18px 6px; margin-bottom: 18px;
   }
-  .settings-card h4 { margin: 0 0 14px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); }
+  .settings-card h4 { margin: 0 0 14px; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--m-faint); }
 
   .holiday-row {
     display: flex; align-items: center; justify-content: space-between;
@@ -147,8 +152,9 @@
     font-size: 14px;
   }
   .holiday-row:last-child { border-bottom: none; }
-  .holiday-row .date { font-family: var(--font-mono); color: var(--color-yellow); font-size: 13px; min-width: 88px; }
-  .holiday-row .remove-btn { background: none; border: none; color: var(--color-text-muted); font-size: 18px; }
+  .holiday-row .date { font-family: var(--font-mono); color: var(--m-accent-text); font-size: 13px; min-width: 88px; }
+  .holiday-row .remove-btn, .feriensperre-row .remove-btn { background: none; border: none; color: var(--m-muted); padding: 4px; display: inline-flex; }
+  .feriensperre-row .remove-btn:hover { color: var(--m-danger); }
   .holiday-row .remove-btn:hover { color: var(--color-danger); }
 
   .feriensperre-row {
@@ -157,7 +163,7 @@
     font-size: 14px; gap: 10px;
   }
   .feriensperre-row:last-child { border-bottom: none; }
-  .feriensperre-row .range { font-family: var(--font-mono); color: var(--color-yellow); font-size: 13px; }
+  .feriensperre-row .range { font-family: var(--font-mono); color: var(--m-accent-text); font-size: 13px; }
   .feriensperre-row .name { color: var(--color-text-muted); font-size: 13px; flex: 1; }
 
   .inline-add-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
@@ -183,7 +189,7 @@
   }
   .status-dot-badge.dot-idle { background: var(--color-text-muted); }
   .status-dot-badge.dot-working { background: var(--color-success); }
-  .status-dot-badge.dot-break { background: var(--color-yellow); }
+  .status-dot-badge.dot-break { background: var(--m-warning); }   /* Pause: Bernstein statt Grün, damit sie sich von "arbeitet" abhebt */
 
   .status-field {
     display: flex; justify-content: space-between; align-items: center;
@@ -195,10 +201,10 @@
 
   .stempel-actions { display: flex; gap: 10px; margin-top: 18px; }
   .stempel-actions .btn { flex: 1; padding: 15px; font-size: 15px; }
-  .btn-yellow-outline {
+  .btn-yellow-outline {   /* Name historisch: heute grüner Rahmen-Button */
     background: transparent;
-    color: var(--color-yellow);
-    border: 2px solid var(--color-yellow);
+    color: var(--m-accent-text);
+    border: 1.5px solid var(--m-accent-text);
   }
   .btn-danger-solid {
     background: var(--color-danger);
@@ -219,11 +225,12 @@
     padding: 18px 0 22px;
   }
   .month-nav-btn {
-    background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text);
+    background: var(--m-card); border: 1px solid var(--m-border); color: var(--m-text);
     width: 38px; height: 38px; border-radius: 50%; font-size: 18px;
+    display: inline-flex; align-items: center; justify-content: center; padding: 0;
   }
-  .month-nav-btn:hover { border-color: var(--color-yellow); color: var(--color-yellow); }
-  .month-label { font-family: var(--font-display); font-weight: 700; font-size: 17px; min-width: 160px; text-align: center; }
+  .month-nav-btn:hover { border-color: var(--m-accent); color: var(--m-accent-text); }
+  .month-label { font-weight: 600; font-size: 17px; min-width: 160px; text-align: center; }
   .month-label .week-kw { display: block; }
   .month-label .week-dates { display: block; font-size: 12.5px; font-weight: 500; color: var(--color-text-muted); margin-top: 2px; }
 
@@ -257,7 +264,7 @@
   .day-row .day-sub { font-size: 12.5px; color: var(--color-text-muted); margin-top: 2px; }
   .day-row .day-hours { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--color-text-muted); white-space: nowrap; }
   .day-row.has-hours .day-hours { color: var(--color-text); }
-  .day-row.is-today .day-date { color: var(--color-yellow); }
+  .day-row.is-today .day-date { color: var(--m-accent-text); }
 
   /* Anträge & Abwesenheiten */
   .form-card { padding: 18px; margin-bottom: 18px; }
@@ -275,17 +282,18 @@
     font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
     padding: 4px 10px; border-radius: 999px; white-space: nowrap;
   }
-  .status-badge.offen { background: rgba(253,214,0,0.15); color: var(--color-yellow); }
-  .status-badge.genehmigt { background: rgba(76,175,125,0.15); color: var(--color-success); }
-  .status-badge.abgelehnt { background: rgba(229,72,77,0.15); color: var(--color-danger); }
+  .status-badge.offen { background: var(--m-warning-bg); color: var(--m-warning); }
+  .status-badge.genehmigt { background: var(--m-success-bg); color: var(--m-success); }
+  .status-badge.abgelehnt { background: var(--m-danger-bg); color: var(--m-danger); }
 
   .request-actions { display: flex; gap: 8px; margin-top: 12px; }
   .request-actions .btn { flex: 1; padding: 9px; font-size: 13px; }
-  .btn-approve { background: var(--color-success); color: #06170f; }
+  .btn-approve { background: var(--m-accent); color: var(--m-accent-fg); }
   .btn-reject { background: transparent; border: 1px solid var(--color-danger); color: var(--color-danger); }
 
   .small-remove-btn {
-    background: none; border: none; color: var(--color-text-muted); font-size: 16px; flex-shrink: 0;
+    background: none; border: none; color: var(--m-muted); flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center; padding: 4px;
   }
   .small-remove-btn:hover { color: var(--color-danger); }
 
@@ -295,8 +303,8 @@
   /* Arbeitsplan / Planung Wochenansicht */
   .abteilung-block { margin-bottom: 28px; }
   .abteilung-heading {
-    font-family: var(--font-display); font-weight: 800; color: var(--color-yellow);
-    font-size: 15px; text-transform: uppercase; letter-spacing: 0.03em;
+    font-weight: 600; color: var(--m-accent-text);
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;
     margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--color-border);
   }
   .arbeitsplan-day { margin-bottom: 14px; }
@@ -306,20 +314,20 @@
   .arbeitsplan-day-header .day-weekday { font-weight: 700; font-size: 14.5px; }
   .arbeitsplan-day-header .day-daydate { font-size: 13px; color: var(--color-text-muted); }
   .today-badge {
-    background: var(--color-surface-raised); color: var(--color-yellow);
-    font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+    background: var(--m-chip-bg); color: var(--m-chip-fg);
+    font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px;
   }
   .shift-card {
     background: var(--color-surface); border: 1px solid var(--color-border);
     border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 8px;
   }
   .shift-card.own-shift {
-    border-color: var(--color-yellow);
-    background: rgba(253, 214, 0, 0.08);
+    border-color: var(--m-accent);
+    background: var(--m-success-bg);
   }
   .shift-card.own-shift.is-today-shift {
-    background: rgba(253, 214, 0, 0.2);
-    box-shadow: 0 0 0 1px var(--color-yellow);
+    background: var(--m-chip-bg);
+    box-shadow: 0 0 0 1px var(--m-accent);
   }
   .shift-card.freiwunsch-card {
     border: 1px dashed var(--color-border);
@@ -327,20 +335,22 @@
   }
   .shift-card.freiwunsch-card .shift-card-sub { color: var(--color-text-muted); }
   .shift-card-main { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-  .shift-card-time { font-family: var(--font-mono); font-size: 13px; color: var(--color-yellow); margin-top: 2px; }
+  .shift-card-time { font-family: var(--font-mono); font-size: 13px; color: var(--m-accent-text); margin-top: 2px; }
   .shift-card-sub { font-size: 12.5px; color: var(--color-text-muted); margin-top: 4px; }
   .shift-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
   .icon-btn {
-    background: var(--color-surface-raised); border: 1px solid var(--color-border);
-    border-radius: 8px; width: 32px; height: 32px; font-size: 14px;
+    background: var(--m-surface-2); border: 1px solid var(--m-border); color: var(--m-muted);
+    border-radius: 8px; width: 32px; height: 32px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
   }
-  .icon-btn-danger:hover { border-color: var(--color-danger); }
+  .icon-btn:hover { color: var(--m-text); border-color: var(--m-accent); }
+  .icon-btn-danger:hover { border-color: var(--m-danger); color: var(--m-danger); }
   .add-shift-btn {
     width: 100%; background: transparent; border: 1px dashed var(--color-border);
     color: var(--color-text-muted); border-radius: var(--radius-md); padding: 10px;
     font-size: 13px; font-weight: 600; margin-bottom: 4px;
   }
-  .add-shift-btn:hover { border-color: var(--color-yellow); color: var(--color-yellow); }
+  .add-shift-btn:hover { border-color: var(--m-accent); color: var(--m-accent-text); }
   .no-shifts-text { margin-bottom: 10px; }
 
   /* ============================================================
@@ -350,11 +360,9 @@
     main {
       max-width: 1100px;
     }
-    .topbar, .bottom-nav {
-      max-width: none;
-      padding-left: 32px;
-      padding-right: 32px;
-    }
+    .topbar { max-width: none; padding-left: 32px; padding-right: 32px; }
+    .nav-wrap { padding-left: 32px; padding-right: 32px; }
+    .bottom-nav { max-width: none; }
 
     /* Stempel, Monat & Anträge bleiben handy-breit, auch auf grossen Bildschirmen */
     #panel-stempel, #panel-monat, #panel-antraege {
@@ -409,7 +417,7 @@
   /* Live-Status */
   .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .status-item {
-    background: var(--color-surface); border-radius: var(--radius-md);
+    background: var(--m-card); border: 1px solid var(--m-border); border-radius: var(--radius-md);
     padding: 14px 16px;
   }
   .status-item .name-row { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 14.5px; }
@@ -442,7 +450,7 @@
   }
   .detail-shift-row .date { font-weight: 700; font-size: 13.5px; }
   .detail-shift-row .sub { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
-  .manual-badge { font-size: 10px; font-weight: 700; color: var(--color-yellow); margin-left: 6px; }
+  .manual-badge { font-size: 10px; font-weight: 700; color: var(--m-accent-text); margin-left: 6px; }
   .detail-shift-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
   /* Radio-/Checkbox-Pills im Mitarbeiter-Formular */
@@ -453,9 +461,9 @@
     border-radius: 999px; padding: 8px 14px; font-size: 13.5px; cursor: pointer;
   }
   .radio-pill:has(input:checked), .checkbox-pill:has(input:checked) {
-    border-color: var(--color-yellow); color: var(--color-yellow);
+    border-color: var(--m-accent); color: var(--m-accent-text); background: var(--m-success-bg);
   }
-  .radio-pill input, .checkbox-pill input { accent-color: var(--color-yellow); }
+  .radio-pill input, .checkbox-pill input { accent-color: var(--m-accent); }
 
   .field input:disabled {
     opacity: 0.6; cursor: not-allowed;
@@ -466,22 +474,28 @@
 
 <div class="topbar">
   <div class="brand">
-    <div class="brand-name">Marmotte</div>
-    <div class="brand-sub">Zeiterfassung</div>
+    <div class="brand-logo"><i data-icon="croissant"></i></div>
+    <div>
+      <div class="brand-name">Marmotte</div>
+      <div class="brand-sub">Zeiterfassung</div>
+    </div>
   </div>
   <div class="who">
     <span class="name" id="user-name-label"></span>
-    <button class="logout-btn" id="logout-btn">Abmelden</button>
+    <button class="m-theme-btn" data-theme-toggle aria-label="Hell/Dunkel umschalten"></button>
+    <button class="logout-btn" id="logout-btn" aria-label="Abmelden"><i data-icon="log-out" data-size="16"></i></button>
   </div>
 </div>
 
+<div class="nav-wrap">
 <nav class="bottom-nav" id="bottom-nav">
-  <button data-tab="stempel" class="active"><span class="icon">⏱</span>Stempel</button>
-  <button data-tab="monat"><span class="icon">📅</span>Monat</button>
-  <button data-tab="antraege"><span class="icon">✉️</span>Anträge</button>
-  <button data-tab="arbeitsplan"><span class="icon">🗓</span>Arbeitsplan</button>
-  <button data-tab="admin" id="admin-nav-btn" style="display:none;"><span class="icon">⚙️</span><span id="admin-nav-label">Admin</span></button>
+  <button data-tab="stempel" class="active"><span class="icon"><i data-icon="clock"></i></span>Stempel</button>
+  <button data-tab="monat"><span class="icon"><i data-icon="calendar"></i></span>Monat</button>
+  <button data-tab="antraege"><span class="icon"><i data-icon="mail"></i></span>Anträge</button>
+  <button data-tab="arbeitsplan"><span class="icon"><i data-icon="calendar-days"></i></span>Arbeitsplan</button>
+  <button data-tab="admin" id="admin-nav-btn" style="display:none;"><span class="icon"><i data-icon="settings"></i></span><span id="admin-nav-label">Admin</span></button>
 </nav>
+</div>
 
 <main>
 
@@ -521,9 +535,9 @@
   <!-- MONAT -->
   <section class="tab-panel" id="panel-monat">
     <div class="month-nav">
-      <button id="month-prev" class="month-nav-btn">‹</button>
+      <button id="month-prev" class="month-nav-btn" aria-label="Zurück"><i data-icon="chevron-left" data-size="18"></i></button>
       <span class="month-label" id="month-label">–</span>
-      <button id="month-next" class="month-nav-btn">›</button>
+      <button id="month-next" class="month-nav-btn" aria-label="Weiter"><i data-icon="chevron-right" data-size="18"></i></button>
     </div>
 
     <div class="month-summary-grid" id="month-summary-grid"></div>
@@ -534,8 +548,8 @@
   <!-- ANTRÄGE -->
   <section class="tab-panel" id="panel-antraege">
     <div class="subtabs" id="antraege-subtabs">
-      <button data-sub="ferien" class="active">🌴 Ferien Anträge</button>
-      <button data-sub="freiwuensche">☁️ Frei Wünsche</button>
+      <button data-sub="ferien" class="active"><i data-icon="tree-palm" data-size="15"></i> Ferien Anträge</button>
+      <button data-sub="freiwuensche"><i data-icon="cloud" data-size="15"></i> Frei Wünsche</button>
     </div>
 
     <div class="subpanel active" id="antraege-sub-ferien">
@@ -566,9 +580,9 @@
   <!-- ARBEITSPLAN -->
   <section class="tab-panel" id="panel-arbeitsplan">
     <div class="month-nav">
-      <button id="week-prev" class="month-nav-btn">‹</button>
+      <button id="week-prev" class="month-nav-btn" aria-label="Zurück"><i data-icon="chevron-left" data-size="18"></i></button>
       <span class="month-label" id="week-label">–</span>
-      <button id="week-next" class="month-nav-btn">›</button>
+      <button id="week-next" class="month-nav-btn" aria-label="Weiter"><i data-icon="chevron-right" data-size="18"></i></button>
     </div>
     <div id="arbeitsplan-content"></div>
   </section>
@@ -585,8 +599,8 @@
 
     <div class="subpanel active" id="sub-team">
       <div class="subtabs" id="team-subnav">
-        <button data-teamview="list" class="active">👥 Mitarbeitende</button>
-        <button data-teamview="form">+ Neu</button>
+        <button data-teamview="list" class="active"><i data-icon="users" data-size="15"></i> Mitarbeitende</button>
+        <button data-teamview="form"><i data-icon="plus" data-size="15"></i> Neu</button>
       </div>
 
       <div id="team-list-view">
@@ -760,19 +774,19 @@
           </div>
           <button class="btn btn-primary" id="jahr-filter-btn" style="width:100%;">Filtern</button>
         </div>
-        <button class="btn btn-secondary" id="jahr-pdf-btn" style="width:100%; margin-bottom:16px;">📄 Jahresüberblick als PDF (alle Mitarbeiter)</button>
+        <button class="btn btn-secondary" id="jahr-pdf-btn" style="width:100%; margin-bottom:16px;"><i data-icon="file-text" data-size="16"></i> Jahresüberblick als PDF (alle Mitarbeiter)</button>
         <div id="jahr-results"></div>
       </div>
     </div>
 
     <div class="subpanel" id="sub-abwesenheiten">
       <div class="subtabs" id="abwesenheiten-subtabs">
-        <button data-abwsub="ferienantraege" class="active">🌴 Ferienanträge</button>
-        <button data-abwsub="krank">🤒 Krank</button>
-        <button data-abwsub="unfall">🚑 Unfall</button>
-        <button data-abwsub="militaer">🎖️ Militär</button>
-        <button data-abwsub="schwangerschaft">🤰 Schwangerschaft</button>
-        <button data-abwsub="bezahlter_frei_tag">🎉 Bezahlter Frei Tag</button>
+        <button data-abwsub="ferienantraege" class="active"><i data-icon="tree-palm" data-size="15"></i> Ferienanträge</button>
+        <button data-abwsub="krank"><i data-icon="thermometer" data-size="15"></i> Krank</button>
+        <button data-abwsub="unfall"><i data-icon="ambulance" data-size="15"></i> Unfall</button>
+        <button data-abwsub="militaer"><i data-icon="shield" data-size="15"></i> Militär</button>
+        <button data-abwsub="schwangerschaft"><i data-icon="baby" data-size="15"></i> Schwangerschaft</button>
+        <button data-abwsub="bezahlter_frei_tag"><i data-icon="party-popper" data-size="15"></i> Bezahlter Frei Tag</button>
       </div>
 
       <div class="abw-subpanel active" id="abw-sub-ferienantraege">
@@ -801,9 +815,9 @@
 
     <div class="subpanel" id="sub-planung">
       <div class="month-nav">
-        <button id="woche-prev-admin" class="month-nav-btn">‹</button>
+        <button id="woche-prev-admin" class="month-nav-btn" aria-label="Zurück"><i data-icon="chevron-left" data-size="18"></i></button>
         <span class="month-label" id="woche-label-admin">–</span>
-        <button id="woche-next-admin" class="month-nav-btn">›</button>
+        <button id="woche-next-admin" class="month-nav-btn" aria-label="Weiter"><i data-icon="chevron-right" data-size="18"></i></button>
       </div>
       <div id="planung-content"></div>
     </div>
