@@ -1,6 +1,6 @@
 {
   "name": "Marmotte Zeiterfassung",
-  "short_name": "Marmotte",
+  "short_name": "Zeiterfassung",
   "description": "Zeiterfassung für Marmotte – Ein-/Ausstempeln, Pausen, Urlaub und Verwaltung.",
   "start_url": "./index.html",
   "scope": "./",
