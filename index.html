@@ -11,95 +11,70 @@
 <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon-180.png">
 <meta name="msapplication-config" content="browserconfig.xml">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#383E42">
+<meta name="theme-color" content="#f5f4f2">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Marmotte">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://bakerymarmotte-cmyk.github.io/marmotte-design/tokens.css">
-<link rel="stylesheet" href="https://bakerymarmotte-cmyk.github.io/marmotte-design/components.css">
+<link rel="stylesheet" href="https://bakerymarmotte-cmyk.github.io/marmotte-design/marmotte.css">
 <link rel="stylesheet" href="style.css">
+<script src="https://bakerymarmotte-cmyk.github.io/marmotte-design/theme.js"></script>
+<script src="https://bakerymarmotte-cmyk.github.io/marmotte-design/icons.js" defer></script>
 <style>
-  .login-wrap { width: 100%; max-width: 400px; }
-  .brand-row {
-    text-align: center; margin-bottom: 36px;
+  /* --- Neues Design: Anpassungen gegenüber style.css (gilt nur auf dieser Seite) --- */
+  body { background-image: none; }
+  .centered-screen { flex-direction: column; padding: 16px; }
+  .card { border-radius: var(--m-radius-lg); box-shadow: var(--m-shadow); background: var(--m-card); }
+  .field { gap: 4px; margin-bottom: 14px; }
+  .field label { font-size: 12px; font-weight: 400; color: var(--m-muted); text-transform: none; letter-spacing: 0; }
+  .field input {
+    background: var(--m-surface-2); border-radius: var(--m-radius-sm);
+    padding: 11px 12px; font-size: 16px; /* 16px verhindert das Hineinzoomen auf dem iPhone */
   }
-  .brand-title {
-    font-family: var(--font-display);
-    font-weight: 800;
-    font-size: 36px;
-    color: var(--color-yellow);
-    letter-spacing: -0.01em;
-    line-height: 1.1;
+  .field input:focus { border-color: var(--m-accent); box-shadow: 0 0 0 3px var(--m-chip-bg); }
+  .btn { border-radius: var(--m-radius-md); font-weight: 600; font-size: 14px; padding: 13px 20px; }
+  .btn-primary { background: var(--m-accent); color: var(--m-accent-fg); }
+  .btn-primary:disabled { background: var(--m-card-soft); color: var(--m-faint); border: 1px solid var(--m-border); }
+  .btn-secondary { border-color: var(--m-border); color: var(--m-text); background: var(--m-card); }
+  .btn-secondary:hover { border-color: var(--m-accent); }
+  .error-text { color: var(--m-danger); margin: 0 0 12px; min-height: 0; }
+  .error-text:empty { margin: 0; }
+  form .btn { margin-top: 6px; }
+  .theme-row { width: 100%; display: flex; justify-content: flex-end; margin-bottom: 12px; }
+  .brand-col { display: flex; flex-direction: column; align-items: center; margin-bottom: 28px; }
+  .brand-logo {
+    width: 64px; height: 64px; border-radius: var(--m-radius-lg);
+    background: var(--m-accent); color: #fef3c7;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
   }
-  .brand-sub {
-    font-size: 22px;
-    font-family: var(--font-body);
-    font-weight: 400;
-    color: var(--color-yellow);
-    letter-spacing: -0.01em;
-    margin-top: 4px;
-    opacity: 0.9;
-  }
-  .login-card { padding: 36px 32px 32px; text-align: center; }
-  .login-card h1 {
-    font-size: 22px;
-    margin: 0 0 6px;
-    font-weight: 700;
-  }
-  .login-card .sub {
-    color: var(--color-text-muted);
-    font-size: 14px;
-    margin: 0 0 28px;
-  }
+  .brand-title { font-size: 24px; font-weight: 700; color: var(--m-accent); letter-spacing: -0.01em; line-height: 1.2; }
+  .brand-sub { font-size: 14px; color: var(--m-muted); margin-top: 2px; }
+  .login-wrap { width: 100%; max-width: 384px; }
+  .login-card { padding: 24px 20px 20px; text-align: center; }
+  .login-card h1 { font-size: 18px; margin: 0 0 4px; font-weight: 600; }
+  .login-card .sub { color: var(--m-muted); font-size: 14px; margin: 0 0 20px; }
   form { text-align: left; }
-  .footer-note {
-    text-align: center;
-    color: var(--color-text-muted);
-    font-size: 12.5px;
-    margin-top: 22px;
-  }
   .forgot-link {
-    display: block;
-    text-align: center;
-    margin-top: 16px;
-    font-size: 13.5px;
-    color: var(--color-text-muted);
-    background: none;
-    border: none;
-    cursor: pointer;
-    text-decoration: underline;
-    padding: 4px;
-    width: 100%;
+    display: block; width: 100%; margin-top: 12px; padding: 6px;
+    text-align: center; font: inherit; font-size: 13.5px; color: var(--m-muted);
+    background: none; border: none; cursor: pointer; text-decoration: underline;
   }
-  .forgot-link:hover { color: var(--color-yellow); }
-  #forgot-panel {
-    display: none;
-    text-align: left;
-    margin-top: 18px;
-    padding-top: 18px;
-    border-top: 1px solid var(--color-border);
-  }
+  .forgot-link:hover { color: var(--m-accent-text); }
+  #forgot-panel { display: none; text-align: left; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--m-border); }
   #forgot-panel.open { display: block; }
-  #forgot-panel p.sub {
-    color: var(--color-text-muted);
-    font-size: 13px;
-    margin: 0 0 14px;
-  }
-  .success-text {
-    color: var(--color-success);
-    font-size: 13.5px;
-    margin: 10px 0 0;
-  }
+  #forgot-panel p.sub { color: var(--m-muted); font-size: 13px; margin: 0 0 14px; }
+  .success-text { color: var(--m-success); font-size: 13.5px; margin: 0 0 12px; }
+  .success-text:empty { display: none; }
+  .footer-note { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--m-faint); font-size: 12px; margin-top: 16px; }
 </style>
 </head>
 <body>
 
 <div class="centered-screen">
   <div class="login-wrap">
-    <div class="brand-row">
+    <div class="theme-row"><button class="m-theme-btn" data-theme-toggle aria-label="Hell/Dunkel umschalten"></button></div>
+    <div class="brand-col">
+      <div class="brand-logo"><i data-icon="croissant" data-size="30"></i></div>
       <div class="brand-title">Marmotte</div>
       <div class="brand-sub">Zeiterfassung</div>
     </div>
