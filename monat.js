@@ -69,7 +69,7 @@ export function initMonatTab(session) {
     // Gleitzeitkonto (kumuliert ab Anstellungsdatum bis 1. des angezeigten Monats)
     let gleitzeitMinuten = null;
     if (!isStundenlohn && profile.anstellungsdatum) {
-      const startDate = new Date(profile.anstellungsdatum);
+      const startDate = isoZuDatum(profile.anstellungsdatum);
       gleitzeitMinuten = await calculateGleitzeitkonto(uid, profile, general, feiertagDates, startDate, absenceDates, stichtag);
     }
 
@@ -234,7 +234,7 @@ function countFerientage(dateSet, feiertagDates, upToDateISO) {
   let count = 0;
   for (const iso of dateSet) {
     if (upToDateISO && iso > upToDateISO) continue;
-    const d = new Date(iso);
+    const d = isoZuDatum(iso);
     const weekday = d.getDay();
     if (weekday === 0 || weekday === 6) continue;
     if (feiertagDates.has(iso)) continue;
@@ -246,7 +246,7 @@ function countFerientage(dateSet, feiertagDates, upToDateISO) {
 function expandDateRange(von, bis) {
   const result = [];
   if (!von || !bis) return result;
-  for (let d = new Date(von); toISODate(d) <= bis; d.setDate(d.getDate() + 1)) {
+  for (let d = isoZuDatum(von); toISODate(d) <= bis; d.setDate(d.getDate() + 1)) {
     result.push(toISODate(d));
   }
   return result;
@@ -267,12 +267,12 @@ function calculateSollMinutes(year, month, profile, general, feiertagDates, capE
 
   let rangeStart = monthStart;
   if (profile.anstellungsdatum) {
-    const startDate = new Date(profile.anstellungsdatum);
+    const startDate = isoZuDatum(profile.anstellungsdatum);
     if (startDate > rangeEnd) return 0;
     if (startDate > monthStart) rangeStart = startDate;
   }
   if (profile.kuendigungsdatum) {
-    const endDate = new Date(profile.kuendigungsdatum);
+    const endDate = isoZuDatum(profile.kuendigungsdatum);
     if (endDate < monthStart) return 0;
     if (endDate < rangeEnd) rangeEnd = endDate;
   }
@@ -298,8 +298,8 @@ function calculateSollMinutes(year, month, profile, general, feiertagDates, capE
 // falls die Anstellung in diesem Jahr endet. Nicht bezogene Tage aus Vorjahren fliessen
 // so automatisch als Übertrag ins Folgejahr mit ein.
 function calculateFeriensaldo(profile, general, feiertagDates, absenceDates, stichtag) {
-  const anstellungsdatum = profile.anstellungsdatum ? new Date(profile.anstellungsdatum) : null;
-  const kuendigungsdatum = profile.kuendigungsdatum ? new Date(profile.kuendigungsdatum) : null;
+  const anstellungsdatum = profile.anstellungsdatum ? isoZuDatum(profile.anstellungsdatum) : null;
+  const kuendigungsdatum = profile.kuendigungsdatum ? isoZuDatum(profile.kuendigungsdatum) : null;
   const stellenprozent = profile.stellenprozent || 100;
   const ferientageProJahr = general.ferientageProJahr || 25;
 
@@ -431,4 +431,12 @@ function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
+}
+
+// "YYYY-MM-DD" als LOKALES Datum lesen (Mitternacht Schweizer Zeit).
+// new Date("YYYY-MM-DD") liest das Datum als UTC – nach der Zeitumstellung Ende Oktober
+// fiel dadurch der letzte Tag eines Zeitraums weg.
+function isoZuDatum(iso) {
+  const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number);
+  return new Date(y, m - 1, d);
 }

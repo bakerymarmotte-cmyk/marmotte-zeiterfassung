@@ -7,7 +7,7 @@
 // Beim Aufraeumen darf daher nur geloescht werden, was zu DIESER App gehoert –
 // sonst raeumen sich die beiden Apps gegenseitig den Cache ab.
 const CACHE_PREFIX = "marmotte-shell-";
-const CACHE_NAME = `${CACHE_PREFIX}v8`;
+const CACHE_NAME = `${CACHE_PREFIX}v9`;
 const DESIGN_ORIGIN = "https://bakerymarmotte-cmyk.github.io";
 const DESIGN = "https://bakerymarmotte-cmyk.github.io/marmotte-design";
 const SHELL_FILES = [

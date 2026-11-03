@@ -254,8 +254,8 @@ async function computeEmployeeReport(emp, vonISO, bisISO, allFerien, allAbw) {
   const myFerien = allFerien.filter((f) => f.uid === emp.uid);
   const myAbw = allAbw.filter((a) => a.uid === emp.uid);
   const todayISO = toISODate(new Date());
-  const start = new Date(vonISO);
-  const end = new Date(bisISO);
+  const start = isoZuDatum(vonISO);
+  const end = isoZuDatum(bisISO);
 
   // Zeiteinträge des Zeitraums in EINER Abfrage laden (statt pro Tag ein Einzelabruf).
   const timeSnap = await getDocs(
@@ -331,7 +331,7 @@ async function computeEmployeeReport(emp, vonISO, bisISO, allFerien, allAbw) {
 function expandRange(von, bis) {
   const result = [];
   if (!von || !bis) return result;
-  for (let d = new Date(von); toISODate(d) <= bis; d.setDate(d.getDate() + 1)) result.push(toISODate(d));
+  for (let d = isoZuDatum(von); toISODate(d) <= bis; d.setDate(d.getDate() + 1)) result.push(toISODate(d));
   return result;
 }
 
@@ -349,7 +349,7 @@ function countFerientageDays(isoList, feiertagDates, upToISO) {
   let count = 0;
   for (const iso of isoList) {
     if (upToISO && iso > upToISO) continue;
-    const d = new Date(iso);
+    const d = isoZuDatum(iso);
     const weekday = d.getDay();
     if (weekday === 0 || weekday === 6) continue;
     if (feiertagDates.has(iso)) continue;
@@ -363,11 +363,11 @@ function countFerientageDays(isoList, feiertagDates, upToISO) {
 // abzüglich bereits bezogener Tage. Vollständig vergangene Jahre werden komplett
 // gerechnet, im Zieljahr nur die Tage vor beforeDateISO.
 function calculateFeriensaldoBis(profile, general, feiertagDates, ferienDatesAll, beforeDateISO) {
-  const anstellungsdatum = profile.anstellungsdatum ? new Date(profile.anstellungsdatum) : null;
-  const kuendigungsdatum = profile.kuendigungsdatum ? new Date(profile.kuendigungsdatum) : null;
+  const anstellungsdatum = profile.anstellungsdatum ? isoZuDatum(profile.anstellungsdatum) : null;
+  const kuendigungsdatum = profile.kuendigungsdatum ? isoZuDatum(profile.kuendigungsdatum) : null;
   const stellenprozent = profile.stellenprozent || 100;
   const ferientageProJahr = general.ferientageProJahr || 25;
-  const beforeDate = new Date(beforeDateISO);
+  const beforeDate = isoZuDatum(beforeDateISO);
 
   const startYear = anstellungsdatum ? anstellungsdatum.getFullYear() : beforeDate.getFullYear();
   const endYear = beforeDate.getFullYear();
@@ -584,7 +584,7 @@ function formatTimeHM(iso) {
 }
 
 function formatDateLong(iso) {
-  const d = new Date(iso);
+  const d = isoZuDatum(iso);
   return d.toLocaleDateString("de-CH", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
@@ -594,7 +594,7 @@ function generatePdf(emp, report, von, bis) {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF();
 
-  const monthYear = new Date(von).toLocaleDateString("de-CH", { month: "long", year: "numeric" });
+  const monthYear = isoZuDatum(von).toLocaleDateString("de-CH", { month: "long", year: "numeric" });
   const abteilungen = getAbteilungen(emp).join(", ");
   const anstellung = report.isStundenlohn ? "Stundenlöhner" : `Festangestellt (${emp.stellenprozent || 100}%)`;
 
@@ -897,4 +897,12 @@ function setupJahresuebersicht(session) {
       resultsEl.innerHTML = '<div class="hint-text">Keine Mitarbeiter gefunden.</div>';
     }
   }
+}
+
+// "YYYY-MM-DD" als LOKALES Datum lesen (Mitternacht Schweizer Zeit).
+// new Date("YYYY-MM-DD") liest das Datum als UTC – nach der Zeitumstellung Ende Oktober
+// fiel dadurch der letzte Tag eines Zeitraums weg.
+function isoZuDatum(iso) {
+  const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number);
+  return new Date(y, m - 1, d);
 }
