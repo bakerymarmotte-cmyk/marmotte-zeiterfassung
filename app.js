@@ -7,6 +7,7 @@ import { initAntraegeTab } from "./antraege.js";
 import { initAbwesenheitenTab } from "./abwesenheiten.js";
 import { initArbeitsplanTab, initPlanungTab } from "./arbeitsplan.js";
 import { initAuswertungTab } from "./auswertung.js";
+import { initBenachrichtigungen, linkOeffnen } from "./benachrichtigungen.js";
 
 let session = null;
 
@@ -52,6 +53,8 @@ async function start() {
     initAbwesenheitenTab(session);
     initPlanungTab(session);
     initAuswertungTab(session);
+    initBenachrichtigungen(session); // nur Admin
+    linkOeffnen(session);            // Antippen einer M.A.R.M.O.T.-Meldung
   }
 }
 
