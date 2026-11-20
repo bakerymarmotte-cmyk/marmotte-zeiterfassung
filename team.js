@@ -1,3 +1,4 @@
+import { abgleichen } from "./oeffentlich.js";
 import { db } from "./firebase-config.js";
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signOut as signOutSecondary } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -122,6 +123,7 @@ export function initTeamTab(session) {
       subnavBtns.forEach((b) => b.classList.remove("active"));
       subnavBtns[0].classList.add("active");
       loadEmployees();
+      abgleichen();
     } catch (err) {
       console.error(err);
       errorEl.textContent = mapError(err);
@@ -253,6 +255,7 @@ export function initTeamTab(session) {
           subnavBtns.forEach((b) => b.classList.remove("active"));
           subnavBtns[0].classList.add("active");
           loadEmployees();
+          abgleichen();
         } catch (err) {
           console.error(err);
           errorEl.textContent = "Änderung fehlgeschlagen. Bitte erneut versuchen.";

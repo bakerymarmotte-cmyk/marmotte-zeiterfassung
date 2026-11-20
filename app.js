@@ -8,6 +8,7 @@ import { initAbwesenheitenTab } from "./abwesenheiten.js";
 import { initArbeitsplanTab, initPlanungTab } from "./arbeitsplan.js";
 import { initAuswertungTab } from "./auswertung.js";
 import { initBenachrichtigungen, linkOeffnen } from "./benachrichtigungen.js";
+import { abgleichen } from "./oeffentlich.js";
 
 let session = null;
 
@@ -55,6 +56,7 @@ async function start() {
     initAuswertungTab(session);
     initBenachrichtigungen(session); // nur Admin
     linkOeffnen(session);            // Antippen einer M.A.R.M.O.T.-Meldung
+    abgleichen();                    // öffentliche Kopien (personen, abwesenheiten_plan) aktuell halten
   }
 }
 

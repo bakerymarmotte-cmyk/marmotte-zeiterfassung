@@ -12,11 +12,17 @@ const absenceStyles = {
   militaer: { icon: '<i data-icon="shield" data-size="16"></i>', color: "var(--abw-militaer)" },
   schwangerschaft: { icon: '<i data-icon="baby" data-size="16"></i>', color: "var(--abw-schwangerschaft)" },
   bezahlter_frei_tag: { icon: '<i data-icon="party-popper" data-size="16"></i>', color: "var(--abw-bezahlt)" },
+  abwesend: { icon: '<i data-icon="calendar-x" data-size="16"></i>', color: "var(--m-muted)" },
 };
 const typLabels = {
   krank: "Krank", unfall: "Unfall", militaer: "Militär",
   schwangerschaft: "Schwangerschaft", bezahlter_frei_tag: "Bezahlter Frei Tag",
+  abwesend: "Abwesend",
 };
+
+// Mitarbeitende lesen nur die öffentlichen Kopien (personen, abwesenheiten_plan),
+// Admin und Leitung die vollständigen Daten (users, abwesenheiten).
+let vollzugriff = false;
 
 let editingShiftId = null;
 let employeesCache = null;
@@ -24,6 +30,7 @@ let employeesCache = null;
 export function initArbeitsplanTab(session) {
   const role = session.profile.role;
   const isLeitungOrAdmin = role === "admin" || role === "leitung";
+  vollzugriff = isLeitungOrAdmin;
   const myAbteilungen = getEmpAbteilungen(session.profile);
   const sichtbareAbteilungen = ABTEILUNGEN.filter((a) => myAbteilungen.includes(a));
 
@@ -42,6 +49,7 @@ export function initPlanungTab(session) {
     contentId: "planung-content", editable: true, abteilungen: ABTEILUNGEN,
     canSeeAllBemerkungen: true,
     showFreiwuensche: true,
+    kopierenBtnId: "woche-kopieren-btn",
   });
   setupShiftModal(session);
 }
@@ -54,6 +62,17 @@ function setupWeekTab(session, cfg) {
 
   render();
   window.addEventListener("arbeitsplan-refresh", render);
+
+  // Planung: Schichten der Vorwoche in die angezeigte Woche übernehmen
+  if (cfg.kopierenBtnId) {
+    const btn = document.getElementById(cfg.kopierenBtnId);
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try { await vorwocheUebernehmen(weekStart); render(); }
+      catch (err) { console.error(err); alert("Übernehmen fehlgeschlagen. Bitte erneut versuchen."); }
+      finally { btn.disabled = false; }
+    });
+  }
 
   async function render() {
     const labelEl = document.getElementById(cfg.labelId);
@@ -208,6 +227,51 @@ function renderAbteilungBlock(abteilung, weekStart, employees, shifts, ferien, a
   return wrap;
 }
 
+// Kopiert die Schichten der Vorwoche (inkl. Bemerkung) in die Woche ab weekStart.
+// Übersprungen werden: Schichten, die es dort schon gibt, inaktive Mitarbeitende und
+// Tage mit genehmigten Ferien oder einer Abwesenheit der Person.
+async function vorwocheUebernehmen(weekStart) {
+  const vonAlt = toISO(addDays(weekStart, -7));
+  const bisAlt = toISO(addDays(weekStart, -1));
+  const von = toISO(weekStart);
+  const bis = toISO(addDays(weekStart, 6));
+  const [alt, neu, employees, ferien, abwesenheiten] = await Promise.all([
+    loadShifts(vonAlt, bisAlt), loadShifts(von, bis), loadEmployees(), loadFerien(von, bis), loadAbwesenheiten(von, bis),
+  ]);
+  if (!alt.length) { alert("In der Vorwoche sind keine Schichten eingetragen."); return; }
+
+  const schluessel = (x) => `${x.uid}|${x.abteilung}|${x.datum}|${x.von}|${x.bis}`;
+  const schonDa = new Set(neu.map(schluessel));
+  const plan = [];
+  let doppelt = 0, inaktiv = 0, abwesend = 0;
+  for (const s of alt) {
+    const [y, m, d] = s.datum.split("-").map(Number);
+    const datum = toISO(new Date(y, m - 1, d + 7));
+    const ziel = { uid: s.uid, name: s.name || "", abteilung: s.abteilung, datum, von: s.von, bis: s.bis };
+    if (schonDa.has(schluessel(ziel))) { doppelt++; continue; }
+    const emp = employees.find((e) => e.uid === s.uid);
+    if (emp && emp.active === false) { inaktiv++; continue; }
+    const frei = ferien.some((f) => f.uid === s.uid && datum >= f.von && datum <= f.bis) ||
+                 abwesenheiten.some((a) => a.uid === s.uid && datum >= a.von && datum <= a.bis);
+    if (frei) { abwesend++; continue; }
+    plan.push({ quelle: s, ziel: { ...ziel, name: emp?.name || ziel.name } });
+  }
+
+  const ueber = [
+    doppelt ? `${doppelt} schon vorhanden` : "",
+    abwesend ? `${abwesend} wegen Ferien/Abwesenheit` : "",
+    inaktiv ? `${inaktiv} wegen inaktiver Person` : "",
+  ].filter(Boolean).join(", ");
+  if (!plan.length) { alert(`Nichts zu übernehmen${ueber ? ` (übersprungen: ${ueber})` : ""}.`); return; }
+  if (!confirm(`${plan.length} ${plan.length === 1 ? "Schicht" : "Schichten"} aus der Vorwoche übernehmen?${ueber ? `\n\nÜbersprungen: ${ueber}.` : ""}`)) return;
+
+  const bemerkungen = await loadBemerkungen(plan.map((p) => p.quelle), true, null);
+  for (const { quelle, ziel } of plan) {
+    const ref = await addDoc(collection(db, "arbeitsplan"), { ...ziel, createdAt: new Date().toISOString() });
+    await setDoc(doc(db, "arbeitsplan_bemerkungen", ref.id), { uid: ziel.uid, bemerkung: bemerkungen.get(quelle.id) || "" });
+  }
+}
+
 async function loadBemerkungen(shifts, canSeeAll, ownUid) {
   const relevantIds = canSeeAll
     ? shifts.map((s) => s.id)
@@ -273,7 +337,6 @@ async function setupShiftModal(session) {
     const data = {
       uid,
       name: empl ? empl.name : "",
-      personalnummer: empl ? empl.personalnummer : "",
       abteilung: document.getElementById("shift-abteilung").value,
       datum: form.dataset.datum,
       von: document.getElementById("shift-von").value,
@@ -344,7 +407,7 @@ async function openShiftModal(shiftId, datum, abteilung, existingData) {
 
 async function loadEmployees() {
   if (employeesCache) return employeesCache;
-  const snap = await getDocs(query(collection(db, "users"), orderBy("name")));
+  const snap = await getDocs(query(collection(db, vollzugriff ? "users" : "personen"), orderBy("name")));
   employeesCache = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
   return employeesCache;
 }
@@ -362,7 +425,7 @@ async function loadFerien(startISO, endISO) {
 }
 
 async function loadAbwesenheiten(startISO, endISO) {
-  const snap = await getDocs(collection(db, "abwesenheiten"));
+  const snap = await getDocs(collection(db, vollzugriff ? "abwesenheiten" : "abwesenheiten_plan"));
   return snap.docs.map((d) => d.data()).filter((r) => r.bis >= startISO && r.von <= endISO);
 }
 

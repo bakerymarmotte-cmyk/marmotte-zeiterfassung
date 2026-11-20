@@ -1,3 +1,4 @@
+import { abgleichen } from "./oeffentlich.js";
 import { db } from "./firebase-config.js";
 import {
   collection, doc, addDoc, getDocs, getDoc, updateDoc, deleteDoc, query, where, orderBy
@@ -100,6 +101,7 @@ export function initAbwesenheitenTab(session) {
       }
       resetForm();
       loadSimpleList(currentTyp);
+      abgleichen();
     } catch (err) {
       console.error(err);
       errorEl.textContent = "Speichern fehlgeschlagen. Bitte erneut versuchen.";
@@ -167,6 +169,7 @@ export function initAbwesenheitenTab(session) {
         await deleteDoc(doc(db, "abwesenheiten", b.dataset.id));
         if (editingAbwId === b.dataset.id) resetForm();
         loadSimpleList(typ);
+        abgleichen();
       });
     });
     listEl.querySelectorAll("[data-edit]").forEach((b) => {

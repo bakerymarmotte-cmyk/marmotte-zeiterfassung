@@ -250,6 +250,29 @@ function setupUebersicht(session) {
   }
 }
 
+// ---- Pausen nach Arbeitsgesetz (Art. 15 ArG) ----
+// Mindestpause: mehr als 5½ h Arbeit → 15 Min, mehr als 7 h → 30 Min, mehr als 9 h → 60 Min.
+// Als Pause zählen die gestempelten Pausen und die Unterbrüche zwischen zwei Schichten am gleichen Tag.
+// Tage mit offener Schicht oder Pause werden nicht geprüft.
+export function pausenPruefung(shifts) {
+  const fertig = (shifts || []).filter((s) => s.start);
+  if (!fertig.length || fertig.some((s) => !s.ende || (s.pausen || []).some((p) => !p.ende))) return null;
+  const sortiert = [...fertig].sort((a, b) => new Date(a.start) - new Date(b.start));
+  let arbeit = 0, pause = 0;
+  sortiert.forEach((s, i) => {
+    let m = (new Date(s.ende) - new Date(s.start)) / 60000;
+    (s.pausen || []).forEach((p) => {
+      const pm = (new Date(p.ende) - new Date(p.start)) / 60000;
+      m -= pm;
+      pause += pm;
+    });
+    arbeit += Math.max(0, m);
+    if (i > 0) pause += Math.max(0, (new Date(s.start) - new Date(sortiert[i - 1].ende)) / 60000);
+  });
+  const noetig = arbeit > 9 * 60 ? 60 : arbeit > 7 * 60 ? 30 : arbeit > 5.5 * 60 ? 15 : 0;
+  return { arbeit, pause: Math.round(pause), noetig, zuKurz: Math.round(pause) < noetig };
+}
+
 async function computeEmployeeReport(emp, vonISO, bisISO, allFerien, allAbw) {
   const myFerien = allFerien.filter((f) => f.uid === emp.uid);
   const myAbw = allAbw.filter((a) => a.uid === emp.uid);
@@ -284,6 +307,7 @@ async function computeEmployeeReport(emp, vonISO, bisISO, allFerien, allAbw) {
   let sollMinuten = 0;
   let ferienBezogenDays = 0;
   const abwesenheitenCounts = {};
+  const pausenZuKurz = []; // Tage mit zu kurzer Pause (ArG)
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const iso = toISODate(d);
@@ -309,6 +333,8 @@ async function computeEmployeeReport(emp, vonISO, bisISO, allFerien, allAbw) {
       dayMinutes += Math.max(0, m);
     });
     istMinuten += dayMinutes;
+    const pp = pausenPruefung(shifts);
+    if (pp?.zuKurz) pausenZuKurz.push({ iso, ...pp });
 
     if (!isStundenlohn && !isWeekend && !isFeiertag && !ferienHit && !abwHit && isEmployedOn(iso, emp)) {
       sollMinuten += tagessollMinuten;
@@ -325,7 +351,7 @@ async function computeEmployeeReport(emp, vonISO, bisISO, allFerien, allAbw) {
   const feriensaldoStart = calculateFeriensaldoBis(emp, uebersichtGeneral, uebersichtFeiertage, ferienDatesAll, vonISO);
   const feriensaldoEnde = feriensaldoStart - ferienBezogenDays;
 
-  return { sollMinuten, istMinuten, diffMinuten, ferienBezogenDays, abwesenheitenCounts, dailyRows, feriensaldoStart, feriensaldoEnde, isStundenlohn };
+  return { sollMinuten, istMinuten, diffMinuten, ferienBezogenDays, abwesenheitenCounts, dailyRows, feriensaldoStart, feriensaldoEnde, isStundenlohn, pausenZuKurz };
 }
 
 function expandRange(von, bis) {
@@ -424,6 +450,7 @@ function renderEmployeeCard(emp, report, von, bis, showPdfButton = true, showDet
       <div class="uebersicht-name-row">[${escapeHtml(emp.personalnummer || "–")}] ${escapeHtml(emp.name || "")} ${slPill} ${pills}</div>
       <div class="uebersicht-stats">${mainStatsHtml}</div>
       <div class="uebersicht-stats uebersicht-stats-abwesenheiten">${abwStatsHtml || '<span>Keine weiteren Abwesenheiten</span>'}</div>
+      ${report.pausenZuKurz?.length ? `<div class="pausen-warnung" title="${escapeHtml(report.pausenZuKurz.map((t) => `${formatDate(t.iso)}: ${t.pause} von ${t.noetig} Min.`).join("\n"))}"><i data-icon="coffee" data-size="14"></i> Pause zu kurz an ${report.pausenZuKurz.length} ${report.pausenZuKurz.length === 1 ? "Tag" : "Tagen"} (ArG) – siehe Detail</div>` : ""}
     </div>
     <div class="uebersicht-actions">
       ${showDetailButton ? '<button class="btn btn-secondary" data-detail>Detail</button>' : ""}
@@ -485,6 +512,7 @@ async function renderDetailList() {
   let any = false;
   results.forEach(({ iso, snap }) => {
     const shifts = snap.exists() && Array.isArray(snap.data().shifts) ? snap.data().shifts : [];
+    const pp = pausenPruefung(shifts);
     shifts.forEach((s, idx) => {
       any = true;
       const range = `${formatTime(s.start)} – ${s.ende ? formatTime(s.ende) : "läuft"}`;
@@ -495,6 +523,7 @@ async function renderDetailList() {
         <div>
           <div class="date">${formatDateLong(iso)}${s.manuell ? '<span class="manual-badge">MANUELL</span>' : ""}</div>
           <div class="sub">${range}${pausenText ? " · " + pausenText : ""}</div>
+          ${idx === 0 && pp?.zuKurz ? `<div class="pausen-warnung klein">Pause zu kurz: ${pp.pause} von mindestens ${pp.noetig} Min. (ArG)</div>` : ""}
         </div>
         <div class="detail-shift-actions">
           <button class="icon-btn" data-edit-iso="${iso}" data-edit-idx="${idx}"><i data-icon="pencil" data-size="15"></i></button>
