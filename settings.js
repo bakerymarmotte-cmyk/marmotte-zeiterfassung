@@ -1,5 +1,6 @@
 import { db } from "./firebase-config.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { zuschlagEinst } from "./zuschlaege.js";
 
 export function initSettingsTab(session) {
   const isAdmin = session.profile.role === "admin";
@@ -24,6 +25,15 @@ export function initSettingsTab(session) {
     document.getElementById("wochenstunden100").value = data.wochenstunden100 ?? 42;
     document.getElementById("ferientage-jahr").value = data.ferientageProJahr ?? 25;
     document.getElementById("sperrfrist-wochen").value = data.sperrfristWochen ?? 0;
+    const z = zuschlagEinst(data);
+    document.getElementById("zuschlag-aktiv").checked = z.aktiv !== false;
+    document.getElementById("zuschlag-abteilung").value = z.abteilung;
+    document.getElementById("zuschlag-nacht-von").value = z.nachtVon;
+    document.getElementById("zuschlag-nacht-bis").value = z.nachtBis;
+    document.getElementById("zuschlag-nacht-prozent").value = z.nachtProzent;
+    document.getElementById("zuschlag-zeit-von").value = z.zeitVon;
+    document.getElementById("zuschlag-zeit-bis").value = z.zeitBis;
+    document.getElementById("zuschlag-zeit-prozent").value = z.zeitProzent;
   }
 
   async function saveGrundeinstellungen() {
@@ -35,6 +45,16 @@ export function initSettingsTab(session) {
         wochenstunden100: Number(document.getElementById("wochenstunden100").value),
         ferientageProJahr: Number(document.getElementById("ferientage-jahr").value),
         sperrfristWochen: Number(document.getElementById("sperrfrist-wochen").value) || 0,
+        zuschlaege: {
+          aktiv: document.getElementById("zuschlag-aktiv").checked,
+          abteilung: document.getElementById("zuschlag-abteilung").value,
+          nachtVon: document.getElementById("zuschlag-nacht-von").value || "22:00",
+          nachtBis: document.getElementById("zuschlag-nacht-bis").value || "03:00",
+          nachtProzent: Number(document.getElementById("zuschlag-nacht-prozent").value) || 0,
+          zeitVon: document.getElementById("zuschlag-zeit-von").value || "22:00",
+          zeitBis: document.getElementById("zuschlag-zeit-bis").value || "05:00",
+          zeitProzent: Number(document.getElementById("zuschlag-zeit-prozent").value) || 0,
+        },
       });
       btn.textContent = "Gespeichert ✓";
       setTimeout(() => (btn.textContent = "Speichern"), 1500);

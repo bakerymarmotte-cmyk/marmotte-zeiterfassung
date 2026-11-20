@@ -1,4 +1,5 @@
 import { db } from "./firebase-config.js";
+import { zuschlagEinst, hatZuschlag, zuschlaegeTag } from "./zuschlaege.js";
 import { collection, doc, getDoc, getDocs, setDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const typLabels = {
@@ -75,17 +76,24 @@ function setupLiveStatus() {
       return abteilungen.includes(currentFilter);
     });
 
-    // Alle Stempeldaten von heute parallel laden
-    const timeentryResults = await Promise.all(
-      filtered.map((e) => getDoc(doc(db, "timeentries", `${e.uid}_${todayISO}`)))
-    );
+    // Alle Stempeldaten von heute (und gestern, für Schichten über Mitternacht) parallel laden
+    const g = new Date(); g.setDate(g.getDate() - 1);
+    const gestern = toISODate(g);
+    const [timeentryResults, gesternResults] = await Promise.all([
+      Promise.all(filtered.map((e) => getDoc(doc(db, "timeentries", `${e.uid}_${todayISO}`)))),
+      Promise.all(filtered.map((e) => getDoc(doc(db, "timeentries", `${e.uid}_${gestern}`)))),
+    ]);
 
     listEl.innerHTML = '<div class="status-grid" id="status-grid-inner"></div>';
     const gridEl = document.getElementById("status-grid-inner");
 
     filtered.forEach((emp, i) => {
-      const shifts = timeentryResults[i].exists() && Array.isArray(timeentryResults[i].data().shifts)
+      let shifts = timeentryResults[i].exists() && Array.isArray(timeentryResults[i].data().shifts)
         ? timeentryResults[i].data().shifts : [];
+      // Läuft noch eine Schicht von gestern Abend (über Mitternacht, max. 16 h), diese anzeigen
+      const gesternSchichten = gesternResults[i].exists() && Array.isArray(gesternResults[i].data().shifts) ? gesternResults[i].data().shifts : [];
+      const offen = gesternSchichten.find((s) => !s.ende && Date.now() - new Date(s.start).getTime() < 16 * 3600e3);
+      if (offen && !shifts.some((s) => !s.ende)) shifts = [...shifts, offen];
       const planEntry = planToday.find((p) => p.uid === emp.uid);
       const ferienEntry = ferien.find((f) => f.uid === emp.uid);
       const abwEntry = abwesenheiten.find((a) => a.uid === emp.uid);
@@ -308,6 +316,11 @@ async function computeEmployeeReport(emp, vonISO, bisISO, allFerien, allAbw) {
   let ferienBezogenDays = 0;
   const abwesenheitenCounts = {};
   const pausenZuKurz = []; // Tage mit zu kurzer Pause (ArG)
+  // Nacht-/Zeitzuschlag (nur Abteilung Bäckerei)
+  const zEinst = zuschlagEinst(uebersichtGeneral);
+  const zuschlag = hatZuschlag(emp, zEinst) ? zEinst : null;
+  let nachtMinuten = 0;
+  let gutschriftMinuten = 0;
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const iso = toISODate(d);
@@ -335,6 +348,8 @@ async function computeEmployeeReport(emp, vonISO, bisISO, allFerien, allAbw) {
     istMinuten += dayMinutes;
     const pp = pausenPruefung(shifts);
     if (pp?.zuKurz) pausenZuKurz.push({ iso, ...pp });
+    const z = zuschlag ? zuschlaegeTag(shifts, zuschlag, iso === todayISO ? Date.now() : null) : null;
+    if (z) { nachtMinuten += z.nacht; gutschriftMinuten += z.gutschrift; }
 
     if (!isStundenlohn && !isWeekend && !isFeiertag && !ferienHit && !abwHit && isEmployedOn(iso, emp)) {
       sollMinuten += tagessollMinuten;
@@ -342,16 +357,16 @@ async function computeEmployeeReport(emp, vonISO, bisISO, allFerien, allAbw) {
     if (ferienHit && !isWeekend && !isFeiertag) ferienBezogenDays++;
     if (abwHit) abwesenheitenCounts[abwHit.typ] = (abwesenheitenCounts[abwHit.typ] || 0) + 1;
 
-    dailyRows.push({ iso, weekday, shifts, ferien: !!ferienHit, abwesenheit: abwHit || null });
+    dailyRows.push({ iso, weekday, shifts, ferien: !!ferienHit, abwesenheit: abwHit || null, zuschlag: z });
   }
 
-  const diffMinuten = istMinuten - sollMinuten;
+  const diffMinuten = istMinuten + gutschriftMinuten - sollMinuten;
 
   const ferienDatesAll = myFerien.flatMap((f) => expandRange(f.von, f.bis));
   const feriensaldoStart = calculateFeriensaldoBis(emp, uebersichtGeneral, uebersichtFeiertage, ferienDatesAll, vonISO);
   const feriensaldoEnde = feriensaldoStart - ferienBezogenDays;
 
-  return { sollMinuten, istMinuten, diffMinuten, ferienBezogenDays, abwesenheitenCounts, dailyRows, feriensaldoStart, feriensaldoEnde, isStundenlohn, pausenZuKurz };
+  return { sollMinuten, istMinuten, diffMinuten, ferienBezogenDays, abwesenheitenCounts, dailyRows, feriensaldoStart, feriensaldoEnde, isStundenlohn, pausenZuKurz, zuschlag, nachtMinuten, gutschriftMinuten };
 }
 
 function expandRange(von, bis) {
@@ -450,6 +465,7 @@ function renderEmployeeCard(emp, report, von, bis, showPdfButton = true, showDet
       <div class="uebersicht-name-row">[${escapeHtml(emp.personalnummer || "–")}] ${escapeHtml(emp.name || "")} ${slPill} ${pills}</div>
       <div class="uebersicht-stats">${mainStatsHtml}</div>
       <div class="uebersicht-stats uebersicht-stats-abwesenheiten">${abwStatsHtml || '<span>Keine weiteren Abwesenheiten</span>'}</div>
+      ${report.zuschlag ? `<div class="uebersicht-stats"><span><i data-icon="moon" data-size="14"></i> Nacht <strong>${formatMinutes(report.nachtMinuten)}</strong> (${report.zuschlag.nachtProzent} % Lohn)</span><span>Zeitzuschlag <strong>+${formatMinutes(report.gutschriftMinuten)}</strong></span></div>` : ""}
       ${report.pausenZuKurz?.length ? `<div class="pausen-warnung" title="${escapeHtml(report.pausenZuKurz.map((t) => `${formatDate(t.iso)}: ${t.pause} von ${t.noetig} Min.`).join("\n"))}"><i data-icon="coffee" data-size="14"></i> Pause zu kurz an ${report.pausenZuKurz.length} ${report.pausenZuKurz.length === 1 ? "Tag" : "Tagen"} (ArG) – siehe Detail</div>` : ""}
     </div>
     <div class="uebersicht-actions">
@@ -646,6 +662,12 @@ function generatePdf(emp, report, von, bis) {
   }
   pdf.text(`Feriensaldo Monatsanfang: ${report.feriensaldoStart.toFixed(1)} Tage   Ferien bezogen: ${report.ferienBezogenDays} Tage`, 14, 54);
   pdf.text(`Feriensaldo Monatsende: ${report.feriensaldoEnde.toFixed(1)} Tage`, 14, 60);
+  let tabelleY = 66;
+  if (report.zuschlag) {
+    const z = report.zuschlag;
+    pdf.text(`Nachtstunden (${z.nachtVon}–${z.nachtBis}, ${z.nachtProzent} % Lohnzuschlag): ${formatMinutes(report.nachtMinuten)}   Zeitzuschlag (${z.zeitProzent} % für ${z.zeitVon}–${z.zeitBis}): +${formatMinutes(report.gutschriftMinuten)}`, 14, 66);
+    tabelleY = 72;
+  }
 
   const rows = [];
   report.dailyRows.forEach((day) => {
@@ -677,7 +699,7 @@ function generatePdf(emp, report, von, bis) {
   });
 
   pdf.autoTable({
-    startY: 66,
+    startY: tabelleY,
     head: [["Datum", "Von", "Pause von", "Pause bis", "Bis", "Gearbeitet"]],
     body: rows,
     styles: { fontSize: 8 },
@@ -749,6 +771,9 @@ async function computeYearlyBreakdown(emp, year, allFerien, allAbw) {
   const monthlyIst = new Array(12).fill(0);
   let jahresSoll = 0;
   let jahresIst = 0;
+  const zEinstJahr = zuschlagEinst(uebersichtGeneral);
+  const zuschlagJahr = hatZuschlag(emp, zEinstJahr) ? zEinstJahr : null;
+  let jahresGutschrift = 0;
   const abwesenheitenCounts = {};
 
   for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
@@ -776,13 +801,14 @@ async function computeYearlyBreakdown(emp, year, allFerien, allAbw) {
     });
     monthlyIst[month] += dayMinutes;
     jahresIst += dayMinutes;
+    if (zuschlagJahr) jahresGutschrift += zuschlaegeTag(shifts, zuschlagJahr, iso === todayISO ? Date.now() : null).gutschrift;
 
     if (!isStundenlohn && !isWeekend && !isFeiertag && !ferienHit && !abwHit && isEmployedOn(iso, emp)) jahresSoll += tagessollMinuten;
     if (abwHit) abwesenheitenCounts[abwHit.typ] = (abwesenheitenCounts[abwHit.typ] || 0) + 1;
     if (ferienHit && !isWeekend && !isFeiertag) abwesenheitenCounts.ferien = (abwesenheitenCounts.ferien || 0) + 1;
   }
 
-  return { monthlyIst, jahresSoll, jahresIst, gleitzeit: jahresIst - jahresSoll, abwesenheitenCounts, isStundenlohn };
+  return { monthlyIst, jahresSoll, jahresIst, gleitzeit: jahresIst + jahresGutschrift - jahresSoll, abwesenheitenCounts, isStundenlohn };
 }
 
 async function generateJahresPdf({ employees, year, allFerien, allAbw }) {

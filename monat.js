@@ -1,5 +1,6 @@
 import { db } from "./firebase-config.js";
 import { doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { zuschlagEinst, hatZuschlag, zuschlaegeTag } from "./zuschlaege.js";
 
 const typLabels = {
   krank: "Krank",
@@ -49,11 +50,14 @@ export function initMonatTab(session) {
     const feiertagDates = new Set(feiertage.map((f) => f.date));
 
     const absenceDates = await loadAbsenceDates(uid);
+    // Nacht-/Zeitzuschlag (nur Abteilung Bäckerei, siehe zuschlaege.js)
+    const zEinst = zuschlagEinst(general);
+    const zuschlag = hatZuschlag(profile, zEinst) ? zEinst : null;
 
     // Monatswerte
     const sollMinuten = calculateSollMinutes(viewYear, viewMonth, profile, general, feiertagDates, null, absenceDates);
-    const { totalMinutes: istMinuten, perDay } = await calculateIstForMonth(uid, viewYear, viewMonth);
-    const diffMinuten = istMinuten - sollMinuten;
+    const { totalMinutes: istMinuten, perDay, nachtMinuten, gutschriftMinuten } = await calculateIstForMonth(uid, viewYear, viewMonth, zuschlag);
+    const diffMinuten = istMinuten + gutschriftMinuten - sollMinuten;
 
     const ferienDatesThisMonth = new Set(
       [...absenceDates.ferienDates].filter((iso) => iso.startsWith(`${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`))
@@ -70,7 +74,7 @@ export function initMonatTab(session) {
     let gleitzeitMinuten = null;
     if (!isStundenlohn && profile.anstellungsdatum) {
       const startDate = isoZuDatum(profile.anstellungsdatum);
-      gleitzeitMinuten = await calculateGleitzeitkonto(uid, profile, general, feiertagDates, startDate, absenceDates, stichtag);
+      gleitzeitMinuten = await calculateGleitzeitkonto(uid, profile, general, feiertagDates, startDate, absenceDates, stichtag, zuschlag);
     }
 
     renderSummaryGrid({
@@ -81,12 +85,15 @@ export function initMonatTab(session) {
       ferienSaldo,
       gleitzeitMinuten,
       stichtagStr,
+      zuschlag,
+      nachtMinuten,
+      gutschriftMinuten,
     });
 
     renderDayList(viewYear, viewMonth, perDay, absenceDates);
   }
 
-  function renderSummaryGrid({ sollMinuten, istMinuten, diffMinuten, ferienBezogenMonat, ferienSaldo, gleitzeitMinuten, stichtagStr }) {
+  function renderSummaryGrid({ sollMinuten, istMinuten, diffMinuten, ferienBezogenMonat, ferienSaldo, gleitzeitMinuten, stichtagStr, zuschlag, nachtMinuten, gutschriftMinuten }) {
     const diffClass = diffMinuten >= 0 ? "positive" : "negative";
     const gleitzeitClass = gleitzeitMinuten >= 0 ? "positive" : "negative";
 
@@ -108,8 +115,18 @@ export function initMonatTab(session) {
         <div class="summary-value">${ferienBezogenMonat} T</div>
       </div>`;
 
+    const zuschlagCards = zuschlag ? `
+      <div class="summary-card">
+        <div class="summary-label">Nachtstunden<span class="stand-line">${zuschlag.nachtVon}–${zuschlag.nachtBis}, ${zuschlag.nachtProzent} % Lohnzuschlag</span></div>
+        <div class="summary-value">${formatMinutes(nachtMinuten)}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Zeitzuschlag<span class="stand-line">${zuschlag.zeitProzent} % für ${zuschlag.zeitVon}–${zuschlag.zeitBis}</span></div>
+        <div class="summary-value positive">+${formatMinutes(gutschriftMinuten)}</div>
+      </div>` : "";
+
     if (isStundenlohn) {
-      summaryGridEl.innerHTML = gearbeitetCard + feriensaldoCard + ferienBezogenCard;
+      summaryGridEl.innerHTML = gearbeitetCard + zuschlagCards + feriensaldoCard + ferienBezogenCard;
       return;
     }
 
@@ -131,7 +148,7 @@ export function initMonatTab(session) {
         <div class="summary-value ${gleitzeitMinuten === null ? "" : gleitzeitClass}">${gleitzeitMinuten === null ? "–" : (gleitzeitMinuten >= 0 ? "+" : "") + formatMinutes(gleitzeitMinuten)}</div>
       </div>`;
 
-    summaryGridEl.innerHTML = sollCard + gearbeitetCard + diffCard + gleitzeitCard + feriensaldoCard + ferienBezogenCard;
+    summaryGridEl.innerHTML = sollCard + gearbeitetCard + diffCard + gleitzeitCard + zuschlagCards + feriensaldoCard + ferienBezogenCard;
   }
 
   function renderDayList(year, month, perDay, absenceDates) {
@@ -156,6 +173,9 @@ export function initMonatTab(session) {
               : "";
           return `Schicht ${i + 1}: ${start}${pausenText}–${end}`;
         });
+        if (dayData.nacht > 0 || dayData.gutschrift > 0) {
+          shiftLines.push(`<span class="zuschlag-zeile"><i data-icon="moon" data-size="13"></i> Nacht ${formatMinutes(dayData.nacht)} · Zeitzuschlag +${formatMinutes(dayData.gutschrift)}</span>`);
+        }
         const subLines = shiftLines.join("<br>");
         rows.push(`
           <div class="day-row has-hours${isToday ? " is-today" : ""}">
@@ -334,7 +354,8 @@ function calculateFeriensaldo(profile, general, feiertagDates, absenceDates, sti
   return saldo;
 }
 
-async function calculateIstForMonth(uid, year, month) {
+// zuschlag = Einstellungen aus zuschlaege.js (nur Bäckerei) oder null
+async function calculateIstForMonth(uid, year, month, zuschlag = null) {
   const monthStart = new Date(year, month, 1);
   const monthEnd = new Date(year, month + 1, 0);
   const todayISO = toISODate(new Date());
@@ -361,6 +382,8 @@ async function calculateIstForMonth(uid, year, month) {
     });
   }
   let totalMinutes = 0;
+  let nachtMinuten = 0;
+  let gutschriftMinuten = 0;
   const perDay = {};
 
   for (const { iso, snap } of results) {
@@ -382,14 +405,17 @@ async function calculateIstForMonth(uid, year, month) {
       }
       dayMinutes += Math.max(0, minutes);
     }
-    perDay[iso] = { shifts, minutes: dayMinutes };
+    const z = zuschlag ? zuschlaegeTag(shifts, zuschlag, iso === todayISO ? Date.now() : null) : { nacht: 0, gutschrift: 0 };
+    perDay[iso] = { shifts, minutes: dayMinutes, nacht: z.nacht, gutschrift: z.gutschrift };
     totalMinutes += dayMinutes;
+    nachtMinuten += z.nacht;
+    gutschriftMinuten += z.gutschrift;
   }
 
-  return { totalMinutes, perDay };
+  return { totalMinutes, perDay, nachtMinuten, gutschriftMinuten };
 }
 
-async function calculateGleitzeitkonto(uid, profile, general, feiertagDates, startDate, absenceDates, stichtag) {
+async function calculateGleitzeitkonto(uid, profile, general, feiertagDates, startDate, absenceDates, stichtag, zuschlag = null) {
   let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
 
   let totalDiff = 0;
@@ -400,8 +426,8 @@ async function calculateGleitzeitkonto(uid, profile, general, feiertagDates, sta
     const capEnd = monthEnd < stichtag ? monthEnd : stichtag;
 
     const soll = calculateSollMinutes(y, m, profile, general, feiertagDates, capEnd, absenceDates);
-    const { totalMinutes: ist } = await calculateIstForMonth(uid, y, m);
-    totalDiff += (ist - soll);
+    const { totalMinutes: ist, gutschriftMinuten } = await calculateIstForMonth(uid, y, m, zuschlag);
+    totalDiff += (ist + gutschriftMinuten - soll);
 
     cursor = new Date(y, m + 1, 1);
   }

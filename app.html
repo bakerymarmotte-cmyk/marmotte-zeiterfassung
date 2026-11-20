@@ -839,6 +839,33 @@
           <input type="number" id="sperrfrist-wochen" step="1" min="0" max="52">
           <span class="hint-text">Mitarbeitende können innerhalb dieser Frist keine neuen Ferien oder Frei-Wünsche mehr beantragen. Admin/Leitung sind davon ausgenommen. 0 = keine Sperrfrist.</span>
         </div>
+        <h4 style="margin-top:8px;">Nacht- und Zeitzuschlag</h4>
+        <label class="checkbox-pill" style="margin-bottom:12px; display:inline-flex;"><input type="checkbox" id="zuschlag-aktiv"> Zuschläge berechnen</label>
+        <div class="field">
+          <label for="zuschlag-abteilung">Gilt für Abteilung</label>
+          <select id="zuschlag-abteilung">
+            <option value="Bäckerei">Bäckerei</option>
+            <option value="Tearoom&Laden">Tearoom & Laden</option>
+            <option value="Dorfladen">Dorfladen</option>
+          </select>
+        </div>
+        <div class="form-row-2">
+          <div class="field"><label for="zuschlag-nacht-von">Nachtzuschlag von</label><input type="time" id="zuschlag-nacht-von"></div>
+          <div class="field"><label for="zuschlag-nacht-bis">bis</label><input type="time" id="zuschlag-nacht-bis"></div>
+        </div>
+        <div class="field">
+          <label for="zuschlag-nacht-prozent">Nachtzuschlag in % (Lohn)</label>
+          <input type="number" id="zuschlag-nacht-prozent" step="1" min="0" max="200">
+        </div>
+        <div class="form-row-2">
+          <div class="field"><label for="zuschlag-zeit-von">Zeitzuschlag von</label><input type="time" id="zuschlag-zeit-von"></div>
+          <div class="field"><label for="zuschlag-zeit-bis">bis</label><input type="time" id="zuschlag-zeit-bis"></div>
+        </div>
+        <div class="field">
+          <label for="zuschlag-zeit-prozent">Zeitzuschlag in % (Zeitgutschrift)</label>
+          <input type="number" id="zuschlag-zeit-prozent" step="1" min="0" max="200">
+          <span class="hint-text">Der Nachtzuschlag zeigt die Nachtstunden für den Lohn. Der Zeitzuschlag kommt als Zeit zur gearbeiteten Zeit dazu (Differenz und Gleitzeitkonto). Arbeit im Nachtfenster zählt für beide.</span>
+        </div>
         <button class="btn btn-primary" id="save-grundeinstellungen-btn" style="width:100%; margin-bottom:18px;">Speichern</button>
       </div>
 

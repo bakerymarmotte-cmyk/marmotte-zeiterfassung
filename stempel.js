@@ -55,14 +55,36 @@ export function initStempelTab(session) {
   abteilungEl.textContent = abteilung;
 
   let currentShifts = [];
+  // Datum des Eintrags, an dem gerade gestempelt wird. Normalerweise heute; läuft noch eine
+  // Schicht von gestern Abend (über Mitternacht), wird diese am gestrigen Eintrag weitergeführt.
+  let aktivDatum = todayISO();
+  let gesternVergessen = null; // offene Schicht von gestern, die zu alt ist (vergessen auszustempeln)
 
   startClock();
   loadToday();
 
   async function loadToday() {
     try {
-      const snap = await getDoc(doc(db, "timeentries", entryId(uid)));
-      currentShifts = snap.exists() && Array.isArray(snap.data().shifts) ? snap.data().shifts : [];
+      const heute = todayISO();
+      const gestern = isoVon(-1);
+      const [snapHeute, snapGestern] = await Promise.all([
+        getDoc(doc(db, "timeentries", `${uid}_${heute}`)),
+        getDoc(doc(db, "timeentries", `${uid}_${gestern}`)).catch(() => null),
+      ]);
+      const schichtenHeute = snapHeute.exists() && Array.isArray(snapHeute.data().shifts) ? snapHeute.data().shifts : [];
+      const schichtenGestern = snapGestern?.exists() && Array.isArray(snapGestern.data().shifts) ? snapGestern.data().shifts : [];
+      const offenGestern = schichtenGestern.length && !schichtenGestern[schichtenGestern.length - 1].ende
+        ? schichtenGestern[schichtenGestern.length - 1] : null;
+      gesternVergessen = null;
+      if (offenGestern && getStatus(schichtenHeute).state === "idle" &&
+          Date.now() - new Date(offenGestern.start).getTime() < UEBER_MITTERNACHT_MAX) {
+        aktivDatum = gestern;
+        currentShifts = schichtenGestern;
+      } else {
+        aktivDatum = heute;
+        currentShifts = schichtenHeute;
+        if (offenGestern) gesternVergessen = offenGestern;
+      }
       render();
     } catch (err) {
       console.error("Fehler beim Laden der Stempeldaten:", err);
@@ -72,9 +94,9 @@ export function initStempelTab(session) {
   }
 
   async function saveToday() {
-    await setDoc(doc(db, "timeentries", entryId(uid)), {
+    await setDoc(doc(db, "timeentries", `${uid}_${aktivDatum}`), {
       uid,
-      date: todayISO(),
+      date: aktivDatum,
       shifts: currentShifts,
     });
   }
@@ -102,7 +124,9 @@ export function initStempelTab(session) {
     setActionsDisabled(true);
     try {
       await saveToday();
-      render();
+      // Nach dem Ausstempeln einer Schicht von gestern wieder auf heute wechseln
+      if (action === "gehen" && aktivDatum !== todayISO()) await loadToday();
+      else render();
     } catch (err) {
       console.error(err);
       errorEl.textContent = "Speichern fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.";
@@ -132,7 +156,7 @@ export function initStempelTab(session) {
       dotEl.classList.add("dot-working");
       labelEl.textContent = "Eingestempelt";
       kommenRow.style.display = "flex";
-      kommenEl.textContent = formatTime(status.shift.start);
+      kommenEl.textContent = kommenText(status.shift.start);
       actionsEl.innerHTML = `
         <button class="btn btn-yellow-outline" data-action="pause"><i data-icon="pause" data-size="16"></i> Pause</button>
         <button class="btn btn-danger-solid" data-action="gehen"><i data-icon="log-out" data-size="16"></i> Ausstempeln</button>
@@ -141,7 +165,7 @@ export function initStempelTab(session) {
       dotEl.classList.add("dot-break");
       labelEl.textContent = "Pause";
       kommenRow.style.display = "flex";
-      kommenEl.textContent = formatTime(status.shift.start);
+      kommenEl.textContent = kommenText(status.shift.start);
       pauseRow.style.display = "flex";
       pauseSinceEl.textContent = formatTime(status.shift.pausen[status.shift.pausen.length - 1].start);
       actionsEl.innerHTML = `<button class="btn btn-primary" data-action="pause-beenden"><i data-icon="play" data-size="16"></i> Pause beenden</button>`;
@@ -151,10 +175,23 @@ export function initStempelTab(session) {
       btn.addEventListener("click", () => handleAction(btn.dataset.action));
     });
 
+    if (gesternVergessen && status.state === "idle") {
+      errorEl.textContent = `Gestern nicht ausgestempelt (Schicht seit ${formatTime(gesternVergessen.start)}). Bitte der Leitung melden, damit sie die Zeit korrigiert.`;
+    } else if (errorEl.textContent.startsWith("Gestern nicht ausgestempelt")) {
+      errorEl.textContent = "";
+    }
+
     renderShiftList();
   }
 
+  // «06:00» oder «gestern 23:00» bei einer Schicht über Mitternacht
+  function kommenText(startIso) {
+    return aktivDatum !== todayISO() ? `gestern ${formatTime(startIso)}` : formatTime(startIso);
+  }
+
   function renderShiftList() {
+    const titelEl = document.querySelector(".shift-list-title");
+    if (titelEl) titelEl.textContent = aktivDatum !== todayISO() ? "Schichten von gestern (läuft über Mitternacht)" : "Heutige Schichten";
     if (currentShifts.length === 0) {
       shiftList.innerHTML = '<div class="hint-text">Heute noch keine Schicht erfasst.</div>';
       return;
@@ -218,8 +255,14 @@ function getStatus(shifts) {
   return { state: "working", shift: last };
 }
 
-function entryId(uid) {
-  return `${uid}_${todayISO()}`;
+// Eine offene Schicht von gestern wird nur weitergeführt, wenn sie vor weniger als 16 Stunden
+// begonnen hat (z.B. 22:00 → 06:00). Ältere offene Schichten gelten als vergessen.
+const UEBER_MITTERNACHT_MAX = 16 * 60 * 60 * 1000;
+
+function isoVon(tageVerschiebung) {
+  const d = new Date();
+  d.setDate(d.getDate() + tageVerschiebung);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function todayISO() {
